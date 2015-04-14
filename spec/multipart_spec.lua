@@ -1,4 +1,4 @@
-local multipart = require "multipart"
+local Multipart = require "multipart"
 
 local function table_size(t)
   local res = 0
@@ -10,7 +10,7 @@ local function table_size(t)
   return res
 end
 
-describe("Multipart #tools", function()
+describe("Multipart Tests", function()
 
   it("should decode a multipart body", function() 
 
@@ -28,7 +28,7 @@ Content-Type: text/plain
 hello
 --AaB03x--]]
 
-    local res = multipart.parse(body, content_type)
+    local res = Multipart(body, content_type)
     assert.truthy(res)
 
     local internal_data = res._data
@@ -89,7 +89,7 @@ Content-Type: text/plain
 hello
 --AaB03x--]]
 
-    local res = multipart.parse(body, content_type)
+    local res = Multipart(body, content_type)
     assert.truthy(res)
 
     local data = res:tostring()
@@ -114,7 +114,7 @@ Content-Type: text/plain
 hello
 --AaB03x--]]
 
-    local res = multipart.parse(body, content_type)
+    local res = Multipart(body, content_type)
     assert.truthy(res)
 
     res:delete("submit-name")
@@ -148,7 +148,7 @@ Content-Type: text/plain
 hello
 --AaB03x--]]
 
-    local res = multipart.parse(body, content_type)
+    local res = Multipart(body, content_type)
     assert.truthy(res)
 
     res:delete("files")

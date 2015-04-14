@@ -4,6 +4,12 @@ local stringy = require "stringy"
 local MultipartData = {}
 MultipartData.__index = MultipartData
 
+setmetatable(MultipartData, {
+  __call = function (cls, ...)
+    return cls.new(...)
+  end,
+})
+
 local function is_header(value)
   return string.match(value, "(%S+):%s*(%S+)")
 end
@@ -91,12 +97,12 @@ local function encode(t, boundary)
   return result
 end
 
-function MultipartData.parse(data, content_type)
-   local instance = {}             -- our new object
-   setmetatable(instance,MultipartData)  -- make Account handle lookup
-   instance._boundary = string.match(content_type, ";%s+boundary=(%S+)")
-   instance._data = decode(data, instance._boundary)
-   return instance
+function MultipartData.new(data, content_type)
+  local instance = {}
+  setmetatable(instance, MultipartData)
+  instance._boundary = string.match(content_type, ";%s+boundary=(%S+)")
+  instance._data = decode(data, instance._boundary)
+  return instance
 end
 
 function MultipartData:get(name)
