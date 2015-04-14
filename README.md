@@ -1,4 +1,4 @@
-# lua-multipart
+# lua-multipart [![Build Status](https://travis-ci.org/Mashape/lua-multipart.svg)](https://travis-ci.org/Mashape/lua-multipart)
 
 A Lua library to parse and edit `multipart/form-data` data.
 
