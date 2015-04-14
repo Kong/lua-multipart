@@ -19,6 +19,6 @@ dependencies = {
 build = {
   type = "builtin",
   modules = {
-    classic = "src/multipart.lua"
+    multipart = "src/multipart.lua"
   }
 }
