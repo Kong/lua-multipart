@@ -165,4 +165,48 @@ Larry
     assert.are.same(data, replace_new_lines)
   end)
 
+    it("should encode a multipart body", function() 
+    local content_type = "multipart/form-data; boundary=AaB03x"
+    local body = [[
+--AaB03x
+Content-Disposition: form-data; name="submit-name"
+
+Larry
+--AaB03x
+Content-Disposition: form-data; name="files"; filename="file1.txt"
+Content-Type: text/plain
+
+... contents of file1.txt ...
+hello
+--AaB03x--]]
+
+local new_body = [[
+--AaB03x
+Content-Disposition: form-data; name="submit-name"
+
+Larry
+--AaB03x
+Content-Disposition: form-data; name="files"; filename="file1.txt"
+Content-Type: text/plain
+
+... contents of file1.txt ...
+hello
+--AaB03x
+Content-Disposition: form-data; name="hello"
+
+world :)
+--AaB03x--]]
+
+    local res = Multipart(body, content_type)
+    assert.truthy(res)
+
+    res:set_simple("hello", "world :)")
+
+    local data = res:tostring()
+
+    -- The strings should be the same, but \n needs to be replaced with \r\n
+    local replace_new_lines, _ = string.gsub(new_body, "\n", "\r\n")
+    assert.are.same(data, replace_new_lines)
+  end)
+
 end)

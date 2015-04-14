@@ -18,6 +18,16 @@ local function starts_with(full_str, val)
   return string.sub(full_str, 0, string.len(val)) == val
 end
 
+local function table_size(t)
+  local res = 0
+  if t then
+    for _,_ in pairs(t) do
+      res = res + 1
+    end
+  end
+  return res
+end
+
 -- Create a table representation of multipart/data body
 --
 -- @param {string} body The multipart/data string body
@@ -110,7 +120,7 @@ function MultipartData:get(name)
 end
 
 function MultipartData:set_simple(name, value)
-  self._data.data[self._data.indexes[name]] = {
+  self._data.data[table_size(self._data.indexes) + 1] = {
     name = name,
     value = value,
     headers = { "Content-Disposition: form-data; name=\""..name.."\"" }
