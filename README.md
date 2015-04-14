@@ -5,6 +5,7 @@ A Lua library to parse and edit `multipart/form-data` data.
 # Usage
 
 ```lua
+local Multipart = require("multipart")
 
 -- Initialize with a body
 local multipart_data = Multipart(body, content_type_header)
