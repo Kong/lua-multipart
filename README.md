@@ -25,3 +25,7 @@ multipart_data:delete("param-name")
 -- Get a multipart/form-data representation of the object
 local body = multipart_data:tostring()
 ```
+
+# Contribute
+
+This library is a work in progress, pull-requests are welcomed.
