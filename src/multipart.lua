@@ -14,10 +14,6 @@ local function is_header(value)
   return string.match(value, "(%S+):%s*(%S+)")
 end
 
-local function starts_with(full_str, val)
-  return string.sub(full_str, 0, string.len(val)) == val
-end
-
 local function table_size(t)
   local res = 0
   if t then
@@ -44,7 +40,7 @@ local function decode(body, boundary)
   local part_name, part_value
 
   for line in body:gmatch("[^\r\n]+") do
-    if starts_with(line, "--"..boundary) then
+    if stringy.startswith(line, "--"..boundary) then
       if part_name ~= nil then
         result.data[part_index] = {
           name = part_name,
@@ -60,7 +56,7 @@ local function decode(body, boundary)
         part_name = nil
         part_index = part_index + 1
       end
-    elseif starts_with(string.lower(line), "content-disposition") then --Beginning of part
+    elseif stringy.startswith(string.lower(line), "content-disposition") then --Beginning of part
       -- Extract part_name
       local parts = stringy.split(line, ";")
       for _,v in ipairs(parts) do
