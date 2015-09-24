@@ -12,6 +12,17 @@ end
 
 describe("Multipart Tests", function()
 
+  it("should not fail with request that don't have a body", function()
+    local content_type = "multipart/form-data; boundary=AaB03x"
+    local res = Multipart(nil, content_type)
+    assert.truthy(res)
+  end)
+
+  it("should not fail with request that don't have a content-type header", function()
+    local res = Multipart(nil, nil)
+    assert.truthy(res)
+  end)  
+
   it("should decode a multipart body", function() 
 
     local content_type = "multipart/form-data; boundary=AaB03x"
