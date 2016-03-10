@@ -145,6 +145,11 @@ hello
     assert.are.same({"Content-Disposition: form-data; name=\"files\"; filename=\"file1.txt\"", "Content-Type: text/plain"}, param.headers)
     assert.are.same("... contents of file1.txt ...\r\nhello", param.value)
 
+    local all = res:get_all()
+
+    assert.are.same(2, table_size(all))
+    assert.are.same("Larry", all["submit-name"])
+    assert.are.same("... contents of file1.txt ...\r\nhello", all["files"])
   end)
 
   it("should encode a multipart body", function() 
