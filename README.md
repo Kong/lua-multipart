@@ -25,7 +25,7 @@ multipart_data:delete("param-name")
 -- Get a multipart/form-data representation of the object
 local body = multipart_data:tostring()
 
--- Get all the parameters in the form of `{param_name = param_value}`
+-- Get all the parameters in a Lua table, in the form of {param_name = param_value}
 local t = multipart_data:get_all()
 ```
 
