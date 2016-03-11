@@ -118,7 +118,6 @@ function MultipartData:get(name)
 end
 
 function MultipartData:get_all(name)
-  local inspect =require "inspect"
   local result = {}
   for k, v in pairs(self._data.indexes) do
     result[k] = self._data.data[v].value
