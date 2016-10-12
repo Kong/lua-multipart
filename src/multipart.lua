@@ -1,5 +1,4 @@
-
-local stringy = require "stringy"
+local pl_string = require "pl.stringx"
 
 local MultipartData = {}
 MultipartData.__index = MultipartData
@@ -40,7 +39,7 @@ local function decode(body, boundary)
   local part_name, part_value
 
   for line in body:gmatch("[^\r\n]+") do
-    if stringy.startswith(line, "--"..boundary) then
+    if pl_string.startswith(line, "--"..boundary) then
       if part_name ~= nil then
         result.data[part_index] = {
           name = part_name,
@@ -56,14 +55,14 @@ local function decode(body, boundary)
         part_name = nil
         part_index = part_index + 1
       end
-    elseif stringy.startswith(string.lower(line), "content-disposition") then --Beginning of part
+    elseif pl_string.startswith(string.lower(line), "content-disposition") then --Beginning of part
       -- Extract part_name
-      local parts = stringy.split(line, ";")
+      local parts = pl_string.split(line, ";")
       for _,v in ipairs(parts) do
         if not is_header(v) then -- If it's not content disposition part
-          local current_parts = stringy.split(stringy.strip(v), "=")
+          local current_parts = pl_string.split(pl_string.strip(v), "=")
           if string.lower(table.remove(current_parts, 1)) == "name" then
-             local current_value = stringy.strip(table.remove(current_parts, 1))
+             local current_value = pl_string.strip(table.remove(current_parts, 1))
              part_name = string.sub(current_value, 2, string.len(current_value) - 1)
           end
         end
