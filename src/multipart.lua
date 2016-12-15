@@ -38,7 +38,7 @@ local function decode(body, boundary)
   local part_index = 1
   local part_name, part_value
 
-  for line in body:gmatch("[^\r\n]+") do
+  for line in body:gmatch("([%s%S]+?)\r\n") do
     if pl_string.startswith(line, "--"..boundary) then
       if part_name ~= nil then
         result.data[part_index] = {
