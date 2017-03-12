@@ -106,7 +106,7 @@ function MultipartData.new(data, content_type)
   local instance = {}
   setmetatable(instance, MultipartData)
   if content_type then
-    instance._boundary = string.match(content_type, ";%s+boundary=(%S+)")
+    instance._boundary = string.match(content_type, ";%s*boundary=(%S+)")
   end
   instance._data = decode(data or "", instance._boundary)
   return instance
