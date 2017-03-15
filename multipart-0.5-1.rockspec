@@ -1,8 +1,8 @@
 package = "multipart"
-version = "0.4-1"
+version = "0.5-1"
 source = {
   url = "git://github.com/Mashape/lua-multipart",
-  tag = "0.4-1"
+  tag = "0.5-1"
 }
 description = {
   summary = "A simple HTTP multipart encoder/decoder for Lua",
@@ -14,7 +14,7 @@ description = {
 }
 dependencies = {
   "lua >= 5.1",
-  "penlight >= 1.3.2"
+  "penlight >= 1.4.1"
 }
 build = {
   type = "builtin",
