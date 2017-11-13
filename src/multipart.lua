@@ -34,7 +34,9 @@ local function decode(body, boundary)
 
   local part_headers = {}
   local part_index = 1
-  local part_name, part_value
+  local part_name, part_value, part_value_ct
+  part_value = {}
+  part_value_ct = 0
 
   for line in body:gmatch("[^\r\n]+") do
     if line:sub(1, 2) == "--" and line:sub(3, #boundary+2) == boundary then
@@ -42,14 +44,15 @@ local function decode(body, boundary)
         result.data[part_index] = {
           name = part_name,
           headers = part_headers,
-          value = part_value
+          value = table.concat(part_value, "\r\n")
         }
 
         result.indexes[part_name] = part_index
 
         -- Reset fields for the next part
         part_headers = {}
-        part_value = nil
+        part_value = {}
+        part_value_ct = 0
         part_name = nil
         part_index = part_index + 1
       end
@@ -70,7 +73,8 @@ local function decode(body, boundary)
         table.insert(part_headers, line)
       else
         -- The value part begins
-        part_value = (part_value and part_value.."\r\n" or "")..line
+        part_value_ct = part_value_ct + 1
+        part_value[part_value_ct] = line
       end
     end
   end
