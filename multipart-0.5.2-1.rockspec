@@ -1,8 +1,8 @@
 package = "multipart"
-version = "0.5.1-1"
+version = "0.5.2-1"
 source = {
   url = "git://github.com/Mashape/lua-multipart",
-  tag = "0.5.1-1"
+  tag = "0.5.2-1"
 }
 description = {
   summary = "A simple HTTP multipart encoder/decoder for Lua",

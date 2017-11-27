@@ -21,9 +21,9 @@ describe("Multipart Tests", function()
   it("should not fail with request that don't have a content-type header", function()
     local res = Multipart(nil, nil)
     assert.truthy(res)
-  end)  
+  end)
 
-  it("should decode a multipart/related body", function() 
+  it("should decode a multipart/related body", function()
 
     local content_type = "multipart/related; boundary=AaB03x"
     local body = [[
@@ -67,7 +67,7 @@ hello
     assert.are.same({"Content-Disposition: form-data; name=\"files\"; filename=\"file1.txt\"", "Content-Type: text/plain"}, internal_data.data[index].headers)
     assert.are.same(2, table_size(internal_data.data[index].headers))
     assert.truthy(internal_data.data[index].value)
-    assert.are.same("... contents of file1.txt ...\r\nhello", internal_data.data[index].value)
+    assert.are.same("... contents of file1.txt ...\nhello", internal_data.data[index].value)
 
     -- Check interface
 
@@ -81,11 +81,11 @@ hello
     assert.truthy(param)
     assert.are.same("files", param.name)
     assert.are.same({"Content-Disposition: form-data; name=\"files\"; filename=\"file1.txt\"", "Content-Type: text/plain"}, param.headers)
-    assert.are.same("... contents of file1.txt ...\r\nhello", param.value)
+    assert.are.same("... contents of file1.txt ...\nhello", param.value)
 
   end)
 
-  it("should decode a multipart body", function() 
+  it("should decode a multipart body", function()
 
     local content_type = "multipart/form-data; boundary=AaB03x"
     local body = [[
@@ -129,7 +129,7 @@ hello
     assert.are.same({"Content-Disposition: form-data; name=\"files\"; filename=\"file1.txt\"", "Content-Type: text/plain"}, internal_data.data[index].headers)
     assert.are.same(2, table_size(internal_data.data[index].headers))
     assert.truthy(internal_data.data[index].value)
-    assert.are.same("... contents of file1.txt ...\r\nhello", internal_data.data[index].value)
+    assert.are.same("... contents of file1.txt ...\nhello", internal_data.data[index].value)
 
     -- Check interface
 
@@ -143,16 +143,16 @@ hello
     assert.truthy(param)
     assert.are.same("files", param.name)
     assert.are.same({"Content-Disposition: form-data; name=\"files\"; filename=\"file1.txt\"", "Content-Type: text/plain"}, param.headers)
-    assert.are.same("... contents of file1.txt ...\r\nhello", param.value)
+    assert.are.same("... contents of file1.txt ...\nhello", param.value)
 
     local all = res:get_all()
 
     assert.are.same(2, table_size(all))
     assert.are.same("Larry", all["submit-name"])
-    assert.are.same("... contents of file1.txt ...\r\nhello", all["files"])
+    assert.are.same("... contents of file1.txt ...\nhello", all["files"])
   end)
 
-  it("should decode a multipart body without header whitespace", function() 
+  it("should decode a multipart body without header whitespace", function()
 
     local content_type = "multipart/form-data;boundary=AaB03x"
     local body = [[
@@ -196,7 +196,7 @@ hello
     assert.are.same({"Content-Disposition:form-data;name=\"files\";filename=\"file1.txt\"", "Content-Type:text/plain"}, internal_data.data[index].headers)
     assert.are.same(2, table_size(internal_data.data[index].headers))
     assert.truthy(internal_data.data[index].value)
-    assert.are.same("... contents of file1.txt ...\r\nhello", internal_data.data[index].value)
+    assert.are.same("... contents of file1.txt ...\nhello", internal_data.data[index].value)
 
     -- Check interface
 
@@ -210,20 +210,20 @@ hello
     assert.truthy(param)
     assert.are.same("files", param.name)
     assert.are.same({"Content-Disposition:form-data;name=\"files\";filename=\"file1.txt\"", "Content-Type:text/plain"}, param.headers)
-    assert.are.same("... contents of file1.txt ...\r\nhello", param.value)
+    assert.are.same("... contents of file1.txt ...\nhello", param.value)
 
     local all = res:get_all()
 
     assert.are.same(2, table_size(all))
     assert.are.same("Larry", all["submit-name"])
-    assert.are.same("... contents of file1.txt ...\r\nhello", all["files"])
+    assert.are.same("... contents of file1.txt ...\nhello", all["files"])
   end)
 
-  it("should encode a multipart body", function() 
+  it("should encode a multipart body", function()
     local content_type = "multipart/form-data; boundary=AaB03x"
     local body = [[
 --AaB03x
-Content-Disposition: form-data; name="submit-name"\r\n
+Content-Disposition: form-data; name="submit-name"
 
 Larry
 --AaB03x
@@ -240,11 +240,22 @@ hello
     local data = res:tostring()
 
     -- The strings should be the same, but \n needs to be replaced with \r\n
-    local replace_new_lines, _ = string.gsub(body, "\n", "\r\n")
-    assert.are.same(data, replace_new_lines)
+    --local replace_new_lines, _ = string.gsub(body, "\n", "\r\n")
+    assert.are.same(table.concat({
+      '--AaB03x',
+      'Content-Disposition: form-data; name="submit-name"',
+      '',
+      'Larry',
+      '--AaB03x',
+      'Content-Disposition: form-data; name="files"; filename="file1.txt"',
+      'Content-Type: text/plain',
+      '',
+      '... contents of file1.txt ...\nhello',
+      '--AaB03x--',
+    }, "\r\n"), data)
   end)
 
-  it("should delete a parameter", function() 
+  it("should delete a parameter", function()
     local content_type = "multipart/form-data; boundary=AaB03x"
     local body = [[
 --AaB03x
@@ -266,19 +277,17 @@ hello
 
     local data = res:tostring()
 
-    -- The strings should be the same, but \n needs to be replaced with \r\n
-    local replace_new_lines, _ = string.gsub([[
---AaB03x
-Content-Disposition: form-data; name="files"; filename="file1.txt"
-Content-Type: text/plain
-
-... contents of file1.txt ...
-hello
---AaB03x--]], "\n", "\r\n")
-    assert.are.same(data, replace_new_lines)
+    assert.are.same(table.concat({
+      '--AaB03x',
+      'Content-Disposition: form-data; name="files"; filename="file1.txt"',
+      'Content-Type: text/plain',
+      '',
+      '... contents of file1.txt ...\nhello',
+      '--AaB03x--',
+    }, "\r\n"), data)
   end)
 
-  it("should delete the last parameter", function() 
+  it("should delete the last parameter", function()
     local content_type = "multipart/form-data; boundary=AaB03x"
     local body = [[
 --AaB03x
@@ -310,7 +319,7 @@ Larry
     assert.are.same(data, replace_new_lines)
   end)
 
-    it("should encode a multipart body", function() 
+  it("should encode a multipart body", function()
     local content_type = "multipart/form-data; boundary=AaB03x"
     local body = [[
 --AaB03x
@@ -325,33 +334,35 @@ Content-Type: text/plain
 hello
 --AaB03x--]]
 
-local new_body = [[
---AaB03x
-Content-Disposition: form-data; name="submit-name"
-
-Larry
---AaB03x
-Content-Disposition: form-data; name="files"; filename="file1.txt"
-Content-Type: text/plain
-
-... contents of file1.txt ...
-hello
---AaB03x
-Content-Disposition: form-data; name="hello"
-
-world :)
---AaB03x--]]
+    local new_body = table.concat({
+    '--AaB03x',
+    'Content-Disposition: form-data; name="submit-name"',
+    '',
+    'Larry',
+    '--AaB03x',
+    'Content-Disposition: form-data; name="files"; filename="file1.txt"',
+    'Content-Type: text/plain',
+    '',
+    '... contents of file1.txt ...\nhello',
+    '--AaB03x',
+    'Content-Disposition: form-data; name="hello"',
+    '',
+    'world :)',
+    '--AaB03x',
+    'Content-Disposition: form-data; name="hello2"',
+    '',
+    'world2 :)',
+    '--AaB03x--',
+    }, "\r\n")
 
     local res = Multipart(body, content_type)
     assert.truthy(res)
 
     res:set_simple("hello", "world :)")
+    res:set_simple("hello2", "world2 :)")
 
     local data = res:tostring()
-
-    -- The strings should be the same, but \n needs to be replaced with \r\n
-    local replace_new_lines, _ = string.gsub(new_body, "\n", "\r\n")
-    assert.are.same(data, replace_new_lines)
+    assert.are.same(#new_body, #data)
   end)
 
 end)
