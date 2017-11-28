@@ -26,7 +26,7 @@ describe("Multipart Tests", function()
   it("should decode a multipart/related body", function()
 
     local content_type = "multipart/related; boundary=AaB03x"
-    local body = [[
+    local body = ([[
 --AaB03x
 Content-Disposition: form-data; name="submit-name"
 
@@ -37,7 +37,9 @@ Content-Type: text/plain
 
 ... contents of file1.txt ...
 hello
---AaB03x--]]
+
+planetCRLFearth
+--AaB03x--]]):gsub("CRLF", "\r\n")
 
     local res = Multipart(body, content_type)
     assert.truthy(res)
@@ -67,7 +69,7 @@ hello
     assert.are.same({"Content-Disposition: form-data; name=\"files\"; filename=\"file1.txt\"", "Content-Type: text/plain"}, internal_data.data[index].headers)
     assert.are.same(2, table_size(internal_data.data[index].headers))
     assert.truthy(internal_data.data[index].value)
-    assert.are.same("... contents of file1.txt ...\nhello", internal_data.data[index].value)
+    assert.are.same("... contents of file1.txt ...\nhello\n\nplanet\r\nearth", internal_data.data[index].value)
 
     -- Check interface
 
@@ -81,7 +83,7 @@ hello
     assert.truthy(param)
     assert.are.same("files", param.name)
     assert.are.same({"Content-Disposition: form-data; name=\"files\"; filename=\"file1.txt\"", "Content-Type: text/plain"}, param.headers)
-    assert.are.same("... contents of file1.txt ...\nhello", param.value)
+    assert.are.same("... contents of file1.txt ...\nhello\n\nplanet\r\nearth", param.value)
 
   end)
 
