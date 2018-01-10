@@ -1,7 +1,8 @@
 package = "multipart"
-version = "scm-0"
+version = "0.5.3-1"
 source  = {
-  url = "git+https://github.com/Kong/lua-multipart",
+  url = "git://github.com/Kong/lua-multipart",
+  tag = "0.5.3-1",
 }
 description = {
   summary  = "A simple HTTP multipart encoder/decoder for Lua",

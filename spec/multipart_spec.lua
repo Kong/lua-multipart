@@ -154,6 +154,31 @@ hello
     assert.are.same("... contents of file1.txt ...\nhello", all["files"])
   end)
 
+  it("should decode a multipart body with headers in body", function()
+    local content_type = "multipart/form-data;boundary=AaB03x"
+    local body         = '--AaB03x\r\nContent-Disposition:form-data;name="submit-name"\r\n\r\n' ..
+                         'Larry\r\n\r\nContent-Disposition:form-data\r\n\r\n--AaB03x--\r\n'
+
+    local res = Multipart(body, content_type)
+
+    assert.truthy(res)
+
+    local internal_data = res._data
+
+    local index = internal_data.indexes["submit-name"]
+    assert.truthy(index)
+    assert.are.same(1, index)
+    assert.truthy(internal_data.data[index])
+    assert.truthy(internal_data.data[index].name)
+    assert.are.same("submit-name", internal_data.data[index].name)
+    assert.truthy(internal_data.data[index].headers)
+    assert.are.same({"Content-Disposition:form-data;name=\"submit-name\""}, internal_data.data[index].headers)
+    assert.are.same(1, table_size(internal_data.data[index].headers))
+    assert.truthy(internal_data.data[index].value)
+    assert.are.same("Larry\r\n\r\nContent-Disposition:form-data\r\n", internal_data.data[index].value)
+  end)
+
+
   it("should decode a multipart body without header whitespace", function()
 
     local content_type = "multipart/form-data;boundary=AaB03x"
@@ -253,7 +278,7 @@ hello
       'Content-Type: text/plain',
       '',
       '... contents of file1.txt ...\nhello',
-      '--AaB03x--',
+      '--AaB03x--\r\n',
     }, "\r\n"), data)
   end)
 
@@ -270,7 +295,8 @@ Content-Type: text/plain
 
 ... contents of file1.txt ...
 hello
---AaB03x--]]
+--AaB03x--
+]]
 
     local res = Multipart(body, content_type)
     assert.truthy(res)
@@ -286,6 +312,7 @@ hello
       '',
       '... contents of file1.txt ...\nhello',
       '--AaB03x--',
+      '',
     }, "\r\n"), data)
   end)
 
@@ -317,7 +344,8 @@ hello
 Content-Disposition: form-data; name="submit-name"
 
 Larry
---AaB03x--]], "\n", "\r\n")
+--AaB03x--
+]], "\n", "\r\n")
     assert.are.same(data, replace_new_lines)
   end)
 
@@ -354,7 +382,7 @@ hello
     'Content-Disposition: form-data; name="hello2"',
     '',
     'world2 :)',
-    '--AaB03x--',
+    '--AaB03x--\r\n',
     }, "\r\n")
 
     local res = Multipart(body, content_type)
