@@ -156,8 +156,10 @@ hello
 
   it("should decode a multipart body with headers in body", function()
     local content_type = "multipart/form-data;boundary=AaB03x"
-    local body         = '--AaB03x\r\nContent-Disposition:form-data;name="submit-name"\r\n\r\n' ..
-                         'Larry\r\n\r\nContent-Disposition:form-data\r\n\r\n--AaB03x--\r\n'
+    local body         = '--AaB03x\r\n' ..
+                         'Content-Disposition:form-data;name="submit-name"\r\n\r\n' ..
+                         '\r\n\r\nLarry\r\n\r\nContent-Disposition:form-data\r\n\r\n\r\n' ..
+                         '--AaB03x--\r\n'
 
     local res = Multipart(body, content_type)
 
@@ -175,9 +177,38 @@ hello
     assert.are.same({"Content-Disposition:form-data;name=\"submit-name\""}, internal_data.data[index].headers)
     assert.are.same(1, table_size(internal_data.data[index].headers))
     assert.truthy(internal_data.data[index].value)
-    assert.are.same("Larry\r\n\r\nContent-Disposition:form-data\r\n", internal_data.data[index].value)
+    assert.are.same("\r\n\r\nLarry\r\n\r\nContent-Disposition:form-data\r\n\r\n", internal_data.data[index].value)
   end)
 
+  it("should decode a multipart body with multiple headers in body", function()
+    local content_type = "multipart/form-data;boundary=AaB03x"
+    local body         = '--AaB03x\r\n' ..
+                         'Content-Disposition:form-data;name="submit-name"\r\n' ..
+                         'Content-Type:text/plain\r\n\r\n' ..
+                         '\r\n\r\nLarry\r\n\r\nContent-Disposition:form-data\r\n\r\n\r\n' ..
+                         '--AaB03x--\r\n'
+
+    local res = Multipart(body, content_type)
+
+    assert.truthy(res)
+
+    local internal_data = res._data
+
+    local index = internal_data.indexes["submit-name"]
+    assert.truthy(index)
+    assert.are.same(1, index)
+    assert.truthy(internal_data.data[index])
+    assert.truthy(internal_data.data[index].name)
+    assert.are.same("submit-name", internal_data.data[index].name)
+    assert.truthy(internal_data.data[index].headers)
+    assert.are.same({
+      'Content-Disposition:form-data;name="submit-name"',
+      'Content-Type:text/plain',
+    }, internal_data.data[index].headers)
+    assert.are.same(2, table_size(internal_data.data[index].headers))
+    assert.truthy(internal_data.data[index].value)
+    assert.are.same("\r\n\r\nLarry\r\n\r\nContent-Disposition:form-data\r\n\r\n", internal_data.data[index].value)
+  end)
 
   it("should decode a multipart body without header whitespace", function()
 

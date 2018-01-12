@@ -118,7 +118,8 @@ local function decode(body, boundary)
         end
 
       else
-        if not processing_part_value and line:sub(1, 19):lower() == "content-disposition" then --Beginning of part
+        --Beginning of part
+        if not processing_part_value and line:sub(1, 19):lower() == "content-disposition" then
           -- Extract part_name
           for v in line:gmatch("[^;]+") do
             if not is_header(v) then -- If it's not content disposition part
@@ -132,8 +133,18 @@ local function decode(body, boundary)
 
           insert(part_headers, line)
 
+          if sub(body, s, s + 3) == "\r\n\r\n" then
+            processing_part_value = true
+            position = s + 4
+          end
+
         elseif not processing_part_value and is_header(line) then
           insert(part_headers, line)
+
+          if sub(body, s, s + 3) == "\r\n\r\n" then
+            processing_part_value = true
+            position = s + 4
+          end
 
         else
           processing_part_value = true
@@ -185,6 +196,10 @@ local function encode(t, boundary)
 
       i = i + 3
     end
+  end
+
+  if i == 0 then
+    return ""
   end
 
   result[i + 1] = "--"
