@@ -1,4 +1,5 @@
 local setmetatable = setmetatable
+local tostring     = tostring
 local insert       = table.insert
 local remove       = table.remove
 local concat       = table.concat
@@ -9,7 +10,10 @@ local find         = string.find
 local sub          = string.sub
 
 
-local MultipartData = {}
+local RANDOM_BOUNDARY = sub(tostring({}), 10)
+
+
+local MultipartData = { RANDOM_BOUNDARY = RANDOM_BOUNDARY}
 
 
 MultipartData.__index = MultipartData
@@ -49,6 +53,10 @@ local function decode(body, boundary)
     data    = {},
     indexes = {},
   }
+
+  if not boundary then
+    return result
+  end
 
   local part_name
   local part_index    = 1
@@ -182,6 +190,10 @@ end
 -- @param {boundary} boundary The multipart/data boundary to use
 -- @return {string} The multipart/data string body
 local function encode(t, boundary)
+  if not boundary then
+    boundary = RANDOM_BOUNDARY
+  end
+
   local result = {}
   local i = 0
 
@@ -224,7 +236,17 @@ function MultipartData.new(data, content_type)
   local instance = setmetatable({}, MultipartData)
 
   if content_type then
-    instance._boundary = match(content_type, ";%s*boundary=(%S+)")
+    local boundary = match(content_type, ";%s*boundary=(%S+)")
+    if boundary then
+      if (sub(boundary, 1, 1) == '"' and sub(boundary, -1)  == '"') or
+         (sub(boundary, 1, 1) == "'" and sub(boundary, -1)  == "'") then
+        boundary = sub(boundary, 2, -2)
+      end
+
+      if boundary ~= "" then
+        instance._boundary = boundary
+      end
+    end
   end
 
   instance._data = decode(data or "", instance._boundary)
