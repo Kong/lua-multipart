@@ -23,6 +23,69 @@ describe("Multipart Tests", function()
     assert.truthy(res)
   end)
 
+  it("should decode a boundary", function()
+    local content_type = "multipart/related; boundary=AaB03x"
+    local body = ""
+
+    local res = Multipart(body, content_type)
+    assert.truthy(res)
+    assert.are.same("AaB03x", res._boundary)
+  end)
+
+  it("should not crash with missing boundary", function()
+    local content_type = "multipart/related;"
+    local body = ""
+
+    local res = Multipart(body, content_type)
+    assert.truthy(res)
+    assert.are.same(nil, res._boundary)
+  end)
+
+  it("should not crash with empty boundary", function()
+    local content_type = "multipart/related; boundary="
+    local body = ""
+
+    local res = Multipart(body, content_type)
+    assert.truthy(res)
+    assert.are.same(nil, res._boundary)
+  end)
+
+  it("should not crash with empty single quoted boundary", function()
+    local content_type = "multipart/related; boundary=''"
+    local body = ""
+
+    local res = Multipart(body, content_type)
+    assert.truthy(res)
+    assert.are.same(nil, res._boundary)
+  end)
+
+  it("should not crash with empty double quoted boundary", function()
+    local content_type = 'multipart/related; boundary=""'
+    local body = ""
+
+    local res = Multipart(body, content_type)
+    assert.truthy(res)
+    assert.are.same(nil, res._boundary)
+  end)
+
+  it("should decode a single quoted boundary", function()
+    local content_type = "multipart/related; boundary='AaB03x'"
+    local body = ""
+
+    local res = Multipart(body, content_type)
+    assert.truthy(res)
+    assert.are.same("AaB03x", res._boundary)
+  end)
+
+  it("should decode a double quoted boundary", function()
+    local content_type = 'multipart/related; boundary="AaB03x"'
+    local body = ""
+
+    local res = Multipart(body, content_type)
+    assert.truthy(res)
+    assert.are.same("AaB03x", res._boundary)
+  end)
+
   it("should decode a multipart/related body", function()
 
     local content_type = "multipart/related; boundary=AaB03x"
@@ -475,4 +538,43 @@ hello
     assert.are.same(#new_body, #data)
   end)
 
+end)
+
+it("should encode a multipart body with invalid boundary in parsed one", function()
+  local content_type = "multipart/form-data; boundary="
+  local body = [[
+--AaB03x
+Content-Disposition: form-data; name="submit-name"
+
+Larry
+--AaB03x
+Content-Disposition: form-data; name="files"; filename="file1.txt"
+Content-Type: text/plain
+
+... contents of file1.txt ...
+hello
+--AaB03x--]]
+
+  local res = Multipart(body, content_type)
+
+  local new_body = table.concat({
+    '--' .. Multipart.RANDOM_BOUNDARY,
+    'Content-Disposition: form-data; name="hello"',
+    '',
+    'world :)',
+    '--' .. Multipart.RANDOM_BOUNDARY,
+    'Content-Disposition: form-data; name="hello2"',
+    '',
+    'world2 :)',
+    '--' .. Multipart.RANDOM_BOUNDARY .. '--\r\n',
+  }, "\r\n")
+
+  local res = Multipart(body, content_type)
+  assert.truthy(res)
+
+  res:set_simple("hello", "world :)")
+  res:set_simple("hello2", "world2 :)")
+
+  local data = res:tostring()
+  assert.are.same(new_body, data)
 end)
