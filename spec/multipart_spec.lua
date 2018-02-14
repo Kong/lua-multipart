@@ -154,6 +154,55 @@ hello
     assert.are.same("... contents of file1.txt ...\nhello", all["files"])
   end)
 
+  it("should decode invalid empty multipart body", function()
+    local content_type = "multipart/form-data; boundary=AaB03x"
+    local body = "--\n"
+    local res = Multipart(body, content_type)
+    assert.truthy(res)
+    local internal_data = res._data
+    local all = res:get_all()
+    assert.are.same(0, table_size(all))
+  end)
+
+  it("should decode invalid empty multipart body with headers", function()
+
+    local content_type = "multipart/form-data; boundary=AaB03x"
+    local body = [[
+--AaB03x
+Content-Disposition: form-data; name="submit-name"]]
+
+    local res = Multipart(body, content_type)
+    assert.truthy(res)
+
+    local internal_data = res._data
+
+    -- Check internals
+    local index = internal_data.indexes["submit-name"]
+    assert.truthy(index)
+    assert.are.same(1, index)
+    assert.truthy(internal_data.data[index])
+    assert.truthy(internal_data.data[index].name)
+    assert.are.same("submit-name", internal_data.data[index].name)
+    assert.truthy(internal_data.data[index].headers)
+    assert.are.same({"Content-Disposition: form-data; name=\"submit-name\""}, internal_data.data[index].headers)
+    assert.are.same(1, table_size(internal_data.data[index].headers))
+    assert.truthy(internal_data.data[index].value)
+    assert.are.same("", internal_data.data[index].value)
+
+    -- Check interface
+
+    local param = res:get("submit-name")
+    assert.truthy(param)
+    assert.are.same("submit-name", param.name)
+    assert.are.same({"Content-Disposition: form-data; name=\"submit-name\""}, param.headers)
+    assert.are.same("", param.value)
+
+    local all = res:get_all()
+
+    assert.are.same(1, table_size(all))
+    assert.are.same("", all["submit-name"])
+  end)
+
   it("should decode a multipart body with headers in body", function()
     local content_type = "multipart/form-data;boundary=AaB03x"
     local body         = '--AaB03x\r\n' ..

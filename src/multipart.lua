@@ -83,7 +83,7 @@ local function decode(body, boundary)
     end
 
     if line == "" then
-      if processing_part_value then
+      if s and processing_part_value then
         part_value_ct             = part_value_ct + 1
         part_value[part_value_ct] = sub(body, s, s)
       end
@@ -133,7 +133,7 @@ local function decode(body, boundary)
 
           insert(part_headers, line)
 
-          if sub(body, s, s + 3) == "\r\n\r\n" then
+          if s and sub(body, s, s + 3) == "\r\n\r\n" then
             processing_part_value = true
             position = s + 4
           end
@@ -141,7 +141,7 @@ local function decode(body, boundary)
         elseif not processing_part_value and is_header(line) then
           insert(part_headers, line)
 
-          if sub(body, s, s + 3) == "\r\n\r\n" then
+          if s and sub(body, s, s + 3) == "\r\n\r\n" then
             processing_part_value = true
             position = s + 4
           end
@@ -162,6 +162,16 @@ local function decode(body, boundary)
     end
 
   until done
+
+  if part_name ~= nil then
+    result.data[part_index] = {
+      name    = part_name,
+      headers = part_headers,
+      value   = concat(part_value)
+    }
+
+    result.indexes[part_name] = part_index
+  end
 
   return result
 end
