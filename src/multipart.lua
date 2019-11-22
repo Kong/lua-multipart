@@ -297,6 +297,13 @@ function MultipartData:delete(name)
   if index then
      remove(self._data.data, index)
      self._data.indexes[name] = nil
+
+    -- need to recount index
+    for key, value in pairs(self._data.indexes) do
+      if value > index then
+        self._data.indexes[key] = value - 1
+      end
+    end
   end
 end
 
