@@ -492,6 +492,58 @@ Larry
     assert.are.same(data, replace_new_lines)
   end)
 
+  it("should rename a parameter", function()
+    local content_type = "multipart/form-data; boundary=AaB03x"
+    local body = [[
+--AaB03x
+Content-Disposition: form-data; name="1"
+
+Larry
+--AaB03x
+Content-Disposition: form-data; name="2"
+
+Jayce
+--AaB03x
+Content-Disposition: form-data; name="files"; filename="file1.txt"
+Content-Type: text/plain
+
+... contents of file1.txt ...
+hello
+--AaB03x--]]
+
+    local res = Multipart(body, content_type)
+    assert.truthy(res)
+
+    local rename = function(old_name, new_name)
+      local value = res:get(old_name).value
+      res:delete(old_name)
+      res:set_simple(new_name, value)
+    end
+
+    rename("1", "submit-name")
+    rename("2", "other-name")
+
+    local data = res:tostring()
+
+    assert.are.same(table.concat({
+      '--AaB03x',
+      'Content-Disposition: form-data; name="files"; filename="file1.txt"',
+      'Content-Type: text/plain',
+      '',
+      '... contents of file1.txt ...\nhello',
+      '--AaB03x',
+      'Content-Disposition: form-data; name="submit-name"',
+      '',
+      'Larry',
+      '--AaB03x',
+      'Content-Disposition: form-data; name="other-name"',
+      '',
+      'Jayce',
+      '--AaB03x--',
+      '',
+    }, "\r\n"), data)
+  end)
+
   it("should encode a multipart body", function()
     local content_type = "multipart/form-data; boundary=AaB03x"
     local body = [[
