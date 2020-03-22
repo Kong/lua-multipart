@@ -22,6 +22,9 @@ multipart_data:set_simple("some-param-name", "some-value")
 -- Deleting a parameter
 multipart_data:delete("param-name")
 
+-- Setting a file
+multipart_data:set_simple("name", "some-value", "filename", "content_type")
+
 -- Get a multipart/form-data representation of the object
 local body = multipart_data:tostring()
 
