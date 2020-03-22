@@ -630,3 +630,18 @@ hello
   local data = res:tostring()
   assert.are.same(new_body, data)
 end)
+it("set a file example", function()
+    local content_type = "multipart/related; boundary=0f755aa8"
+    local body = ""
+    local res = Multipart(body, content_type)
+    local f = io.open("./spec/example.txt", "rb")
+    local value = f:read("*all")
+    f:close()
+    res:set_simple("example", value, "example.txt", "text/txt")
+    local body = res:tostring()
+    local example_body = table.concat({
+        "--0f755aa8",
+        'Content-Disposition: form-data; name="example"; filename="example.txt"',"content-type: text/txt", "\r\nhello world\n", "--0f755aa8--\r\n"
+    }, "\r\n")
+    assert.are.same(example_body, body)
+  end)
