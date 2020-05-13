@@ -194,7 +194,7 @@ local function decode(body, boundary)
   if part_name ~= nil then
     result.data[part_index] = {
       name          = part_name,
-      part_filename = part_filename,
+      filename      = part_filename,
       headers       = part_headers,
       value         = concat(part_value)
     }
