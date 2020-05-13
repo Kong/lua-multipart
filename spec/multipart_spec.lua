@@ -1,4 +1,4 @@
-local Multipart = require "fs-multipart"
+local Multipart = require "multipart"
 
 local function table_size(t)
   local res = 0
