@@ -128,6 +128,7 @@ planetCRLFearth
     assert.truthy(internal_data.data[index])
     assert.truthy(internal_data.data[index].name)
     assert.are.same("files", internal_data.data[index].name)
+    assert.are.same("file1.txt", internal_data.data[index].filename)
     assert.truthy(internal_data.data[index].headers)
     assert.are.same({"Content-Disposition: form-data; name=\"files\"; filename=\"file1.txt\"", "Content-Type: text/plain"}, internal_data.data[index].headers)
     assert.are.same(2, table_size(internal_data.data[index].headers))
@@ -145,6 +146,7 @@ planetCRLFearth
     param = res:get("files", "file1.txt")
     assert.truthy(param)
     assert.are.same("files", param.name)
+    assert.are.same("file1.txt", param.filename)
     assert.are.same({"Content-Disposition: form-data; name=\"files\"; filename=\"file1.txt\"", "Content-Type: text/plain"}, param.headers)
     assert.are.same("... contents of file1.txt ...\nhello\n\nplanet\r\nearth", param.value)
 
@@ -190,6 +192,7 @@ hello
     assert.truthy(internal_data.data[index])
     assert.truthy(internal_data.data[index].name)
     assert.are.same("files", internal_data.data[index].name)
+    assert.are.same("file1.txt", internal_data.data[index].filename)
     assert.truthy(internal_data.data[index].headers)
     assert.are.same({"Content-Disposition: form-data; name=\"files\"; filename=\"file1.txt\"", "Content-Type: text/plain"}, internal_data.data[index].headers)
     assert.are.same(2, table_size(internal_data.data[index].headers))
@@ -207,6 +210,7 @@ hello
     param = res:get("files", "file1.txt")
     assert.truthy(param)
     assert.are.same("files", param.name)
+    assert.are.same("file1.txt", param.filename)
     assert.are.same({"Content-Disposition: form-data; name=\"files\"; filename=\"file1.txt\"", "Content-Type: text/plain"}, param.headers)
     assert.are.same("... contents of file1.txt ...\nhello", param.value)
 
@@ -362,6 +366,7 @@ hello
     assert.truthy(internal_data.data[index])
     assert.truthy(internal_data.data[index].name)
     assert.are.same("files", internal_data.data[index].name)
+    assert.are.same("file1.txt", internal_data.data[index].filename)
     assert.truthy(internal_data.data[index].headers)
     assert.are.same({"Content-Disposition:form-data;name=\"files\";filename=\"file1.txt\"", "Content-Type:text/plain"}, internal_data.data[index].headers)
     assert.are.same(2, table_size(internal_data.data[index].headers))
@@ -379,6 +384,7 @@ hello
     param = res:get("files", "file1.txt")
     assert.truthy(param)
     assert.are.same("files", param.name)
+    assert.are.same("file1.txt", param.filename)
     assert.are.same({"Content-Disposition:form-data;name=\"files\";filename=\"file1.txt\"", "Content-Type:text/plain"}, param.headers)
     assert.are.same("... contents of file1.txt ...\nhello", param.value)
 
