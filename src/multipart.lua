@@ -43,6 +43,15 @@ local function table_size(t)
   return res
 end
 
+local function get_part_key(part_name, part_filename)
+    assert(part_name ~= nil)
+    local part_key = part_name
+    if part_filename ~= nil then
+        part_key = part_key .. "_" .. part_filename
+    end
+    return part_key
+end
+
 -- Create a table representation of multipart/data body
 --
 -- @param {string} body The multipart/data string body
@@ -59,6 +68,7 @@ local function decode(body, boundary)
   end
 
   local part_name
+  local part_filename
   local part_index    = 1
   local part_headers  = {}
   local part_value    = {}
@@ -110,31 +120,41 @@ local function decode(body, boundary)
           end
 
           result.data[part_index] = {
-            name    = part_name,
-            headers = part_headers,
-            value   = concat(part_value)
+            name        = part_name,
+            filename    = part_filename,
+            headers     = part_headers,
+            value       = concat(part_value)
           }
 
-          result.indexes[part_name] = part_index
+          local part_key = get_part_key(part_name, part_filename)
+          result.indexes[part_key] = part_index
 
           -- Reset fields for the next part
           part_headers  = {}
           part_value    = {}
           part_value_ct = 0
           part_name     = nil
+          file_name     = nil
           part_index    = part_index + 1
         end
 
       else
         --Beginning of part
         if not processing_part_value and line:sub(1, 19):lower() == "content-disposition" then
-          -- Extract part_name
           for v in line:gmatch("[^;]+") do
             if not is_header(v) then -- If it's not content disposition part
+              -- Extract part_name
               local pos = v:match("^%s*[Nn][Aa][Mm][Ee]=()")
               if pos then
                 local current_value = v:match("^%s*([^=]*)", pos):gsub("%s*$", "")
                 part_name = sub(current_value, 2, #current_value - 1)
+              end
+
+              -- Extract part_filename
+              local pos = v:match("^%s*[Ff][Ii][Ll][Ee][Nn][Aa][Mm][Ee]=()")
+              if pos then
+                local current_value = v:match("^%s*([^=]*)", pos):gsub("%s*$", "")
+                part_filename= sub(current_value, 2, #current_value - 1)
               end
             end
           end
@@ -173,12 +193,13 @@ local function decode(body, boundary)
 
   if part_name ~= nil then
     result.data[part_index] = {
-      name    = part_name,
-      headers = part_headers,
-      value   = concat(part_value)
+      name          = part_name,
+      part_filename = part_filename,
+      headers       = part_headers,
+      value         = concat(part_value)
     }
-
-    result.indexes[part_name] = part_index
+    local part_key = get_part_key(part_name, part_filename)
+    result.indexes[part_key] = part_index
   end
 
   return result
@@ -255,8 +276,9 @@ function MultipartData.new(data, content_type)
 end
 
 
-function MultipartData:get(name)
-  return self._data.data[self._data.indexes[name]]
+function MultipartData:get(name, filename)
+  local part_key = get_part_key(name, filename)
+  return self._data.data[self._data.indexes[part_key]]
 end
 
 
@@ -283,31 +305,35 @@ function MultipartData:set_simple(name, value, filename, content_type)
       headers[8] = content_type
     end
     headers = concat(headers)
-    if self._data.indexes[name] then
-      self._data.data[self._data.indexes[name]] = {
-        name = name,
-        value = value,
-        headers = {headers}
+    local part_key = get_part_key(name, filename)
+    if self._data.indexes[part_key] then
+      self._data.data[self._data.indexes[part_key]] = {
+        name        = name,
+        filename    = filename,
+        value       = value,
+        headers     = {headers}
       }
 
     else
       local part_index = table_size(self._data.indexes) + 1
-      self._data.indexes[name] = part_index
+      self._data.indexes[part_key] = part_index
       self._data.data[part_index] = {
-        name    = name,
-        value   = value,
-        headers = {headers}
+        name        = name,
+        filename    = filename,
+        value       = value,
+        headers     = {headers}
       }
     end
 end
 
 
-function MultipartData:delete(name)
-  local index = self._data.indexes[name]
+function MultipartData:delete(name, filename)
+  local part_key = get_part_key(name, filename)
+  local index = self._data.indexes[part_key]
 
   if index then
      remove(self._data.data, index)
-     self._data.indexes[name] = nil
+     self._data.indexes[part_key] = nil
 
     -- need to recount index
     for key, value in pairs(self._data.indexes) do

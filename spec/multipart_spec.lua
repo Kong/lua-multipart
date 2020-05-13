@@ -1,4 +1,4 @@
-local Multipart = require "multipart"
+local Multipart = require "fs-multipart"
 
 local function table_size(t)
   local res = 0
@@ -122,7 +122,7 @@ planetCRLFearth
     assert.truthy(internal_data.data[index].value)
     assert.are.same("Larry", internal_data.data[index].value)
 
-    index = internal_data.indexes["files"]
+    index = internal_data.indexes["files_file1.txt"]
     assert.truthy(index)
     assert.are.same(2, index)
     assert.truthy(internal_data.data[index])
@@ -142,7 +142,7 @@ planetCRLFearth
     assert.are.same({"Content-Disposition: form-data; name=\"submit-name\""}, param.headers)
     assert.are.same("Larry", param.value)
 
-    param = res:get("files")
+    param = res:get("files", "file1.txt")
     assert.truthy(param)
     assert.are.same("files", param.name)
     assert.are.same({"Content-Disposition: form-data; name=\"files\"; filename=\"file1.txt\"", "Content-Type: text/plain"}, param.headers)
@@ -184,7 +184,7 @@ hello
     assert.truthy(internal_data.data[index].value)
     assert.are.same("Larry", internal_data.data[index].value)
 
-    index = internal_data.indexes["files"]
+    index = internal_data.indexes["files_file1.txt"]
     assert.truthy(index)
     assert.are.same(2, index)
     assert.truthy(internal_data.data[index])
@@ -204,7 +204,7 @@ hello
     assert.are.same({"Content-Disposition: form-data; name=\"submit-name\""}, param.headers)
     assert.are.same("Larry", param.value)
 
-    param = res:get("files")
+    param = res:get("files", "file1.txt")
     assert.truthy(param)
     assert.are.same("files", param.name)
     assert.are.same({"Content-Disposition: form-data; name=\"files\"; filename=\"file1.txt\"", "Content-Type: text/plain"}, param.headers)
@@ -214,7 +214,7 @@ hello
 
     assert.are.same(2, table_size(all))
     assert.are.same("Larry", all["submit-name"])
-    assert.are.same("... contents of file1.txt ...\nhello", all["files"])
+    assert.are.same("... contents of file1.txt ...\nhello", all["files_file1.txt"])
   end)
 
   it("should decode invalid empty multipart body", function()
@@ -356,7 +356,7 @@ hello
     assert.truthy(internal_data.data[index].value)
     assert.are.same("Larry", internal_data.data[index].value)
 
-    index = internal_data.indexes["files"]
+    index = internal_data.indexes["files_file1.txt"]
     assert.truthy(index)
     assert.are.same(2, index)
     assert.truthy(internal_data.data[index])
@@ -376,7 +376,7 @@ hello
     assert.are.same({"Content-Disposition:form-data;name=\"submit-name\""}, param.headers)
     assert.are.same("Larry", param.value)
 
-    param = res:get("files")
+    param = res:get("files", "file1.txt")
     assert.truthy(param)
     assert.are.same("files", param.name)
     assert.are.same({"Content-Disposition:form-data;name=\"files\";filename=\"file1.txt\"", "Content-Type:text/plain"}, param.headers)
@@ -386,7 +386,7 @@ hello
 
     assert.are.same(2, table_size(all))
     assert.are.same("Larry", all["submit-name"])
-    assert.are.same("... contents of file1.txt ...\nhello", all["files"])
+    assert.are.same("... contents of file1.txt ...\nhello", all["files_file1.txt"])
   end)
 
   it("should encode a multipart body", function()
@@ -477,7 +477,7 @@ hello
     local res = Multipart(body, content_type)
     assert.truthy(res)
 
-    res:delete("files")
+    res:delete("files", "file1.txt")
 
     local data = res:tostring()
 
@@ -589,6 +589,61 @@ hello
     local data = res:tostring()
     assert.are.same(#new_body, #data)
   end)
+  
+  it("should encode a multipart body file with set param", function()
+    local content_type = "multipart/form-data; boundary=AaB03x"
+    local body = [[
+--AaB03x
+Content-Disposition: form-data; name="submit-name"
+
+Larry
+--AaB03x
+Content-Disposition: form-data; name="files"; filename="file1.txt"
+Content-Type: text/plain
+
+... contents of file1.txt ...
+--AaB03x
+Content-Disposition: form-data; name="files"; filename="file2.txt"
+Content-Type: text/plain
+
+... contents of file2.txt ...
+--AaB03x--]]
+
+    local new_body = table.concat({
+    '--AaB03x',
+    'Content-Disposition: form-data; name="submit-name"',
+    '',
+    'Larry',
+    '--AaB03x',
+    'Content-Disposition: form-data; name="files"; filename="file1.txt"',
+    'Content-Type: text/plain',
+    '',
+    '... contents of file1.txt ...',
+    '--AaB03x',
+    'Content-Disposition: form-data; name="files"; filename="file2.txt"',
+    'Content-Type: text/plain',
+    '',
+    '... contents of file2.txt ...',
+    '--AaB03x',
+    'Content-Disposition: form-data; name="hello"',
+    '',
+    'world :)',
+    '--AaB03x',
+    'Content-Disposition: form-data; name="hello2"',
+    '',
+    'world2 :)',
+    '--AaB03x--\r\n',
+    }, "\r\n")
+
+    local res = Multipart(body, content_type)
+    assert.truthy(res)
+
+    res:set_simple("hello", "world :)")
+    res:set_simple("hello2", "world2 :)")
+
+    local data = res:tostring()
+    assert.are.same(#new_body, #data)
+  end)
 
 end)
 
@@ -630,6 +685,7 @@ hello
   local data = res:tostring()
   assert.are.same(new_body, data)
 end)
+
 it("set a file example", function()
     local content_type = "multipart/related; boundary=0f755aa8"
     local body = ""
