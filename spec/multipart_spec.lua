@@ -150,10 +150,10 @@ planetCRLFearth
 
   end)
 
-  it("should decode a multipart/related body", function()
+  it("should decode a multipart body", function()
 
-    local content_type = "multipart/related; boundary=AaB03x"
-    local body = ([[
+    local content_type = "multipart/form-data; boundary=AaB03x"
+    local body = [[
 --AaB03x
 Content-Disposition: form-data; name="submit-name"
 
@@ -164,9 +164,7 @@ Content-Type: text/plain
 
 ... contents of file1.txt ...
 hello
-
-planetCRLFearth
---AaB03x--]]):gsub("CRLF", "\r\n")
+--AaB03x--]]
 
     local res = Multipart(body, content_type)
     assert.truthy(res)
@@ -196,7 +194,7 @@ planetCRLFearth
     assert.are.same({"Content-Disposition: form-data; name=\"files\"; filename=\"file1.txt\"", "Content-Type: text/plain"}, internal_data.data[index].headers)
     assert.are.same(2, table_size(internal_data.data[index].headers))
     assert.truthy(internal_data.data[index].value)
-    assert.are.same("... contents of file1.txt ...\nhello\n\nplanet\r\nearth", internal_data.data[index].value)
+    assert.are.same("... contents of file1.txt ...\nhello", internal_data.data[index].value)
 
     -- Check interface
 
@@ -210,8 +208,13 @@ planetCRLFearth
     assert.truthy(param)
     assert.are.same("files", param.name)
     assert.are.same({"Content-Disposition: form-data; name=\"files\"; filename=\"file1.txt\"", "Content-Type: text/plain"}, param.headers)
-    assert.are.same("... contents of file1.txt ...\nhello\n\nplanet\r\nearth", param.value)
+    assert.are.same("... contents of file1.txt ...\nhello", param.value)
 
+    local all = res:get_all()
+
+    assert.are.same(2, table_size(all))
+    assert.are.same("Larry", all["submit-name"])
+    assert.are.same("... contents of file1.txt ...\nhello", all["files"])
   end)
 
   it("should decode a multipart body with multiple file parts and missing and repeating filename", function()
@@ -667,7 +670,7 @@ hello
     local data = res:tostring()
     assert.are.same(#new_body, #data)
   end)
-  
+
   it("should encode a multipart body file with set param used", function()
     local content_type = "multipart/form-data; boundary=AaB03x"
     local body = [[

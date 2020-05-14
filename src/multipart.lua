@@ -132,7 +132,7 @@ local function decode(body, boundary)
 
           if part_counter[part_name] == nil then
               part_counter[part_name] = 0
-          end 
+          end
           part_counter[part_name] = part_counter[part_name] + 1
 
           result.indexes[get_part_name(part_name, part_counter[part_name])] = part_index
