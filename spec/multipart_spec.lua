@@ -296,6 +296,21 @@ Content-Type: text/plain
     assert.are.same(2, table_size(internal_data.data[index].headers))
     assert.truthy(internal_data.data[index].value)
     assert.are.same("... contents of file4.txt ...", internal_data.data[index].value)
+
+    -- Check interface
+    local param = res:get("files")
+    assert.truthy(param)
+    assert.are.same("files", param.name)
+    assert.are.same({"Content-Disposition: form-data; name=\"files\"; filename=\"file1.txt\"", "Content-Type: text/plain"}, param.headers)
+    assert.are.same("... contents of file1.txt ...", param.value)
+
+    local all = res:get_all()
+
+    assert.are.same(4, table_size(all))
+    assert.are.same("... contents of file1.txt ...", all["files"])
+    assert.are.same("... contents of file2.txt ...", all["files_part_number_2"])
+    assert.are.same("... contents of file3.txt ...", all["files_part_number_3"])
+    assert.are.same("... contents of file4.txt ...", all["files_part_number_4"])
   end)
 
   it("should decode invalid empty multipart body", function()
