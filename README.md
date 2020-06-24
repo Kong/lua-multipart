@@ -16,6 +16,9 @@ local parameter = multipart_data:get("param-name")
 parameter.value -- The value
 parameter.headers -- A table with the headers associated with the parameter
 
+-- Reading all values of `files` part
+local files = multipart_data:get_as_array("files")
+
 -- Setting a new parameter
 multipart_data:set_simple("some-param-name", "some-value")
 
@@ -30,6 +33,12 @@ local body = multipart_data:tostring()
 
 -- Get all the parameters in a Lua table, in the form of {param_name = param_value}
 local t = multipart_data:get_all()
+
+-- Get all the parameters in a Lua table, in the form of {param_name = param_value} where param_value is array
+local t = multipart_data:get_all_as_arrays()
+
+-- Get all the parameters in a Lua table, in the form of {param_name = param_value} where param_value is string or array
+local t = multipart_data:get_all_with_arrays()
 ```
 
 # Contribute
