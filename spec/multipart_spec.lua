@@ -110,9 +110,11 @@ planetCRLFearth
     local internal_data = res._data
 
     -- Check internals
-    local index = internal_data.indexes["submit-name"]
+    local indexes = internal_data.indexes["submit-name"]
+    assert.truthy(indexes)
+    assert.are.same({1}, indexes)
+    local index = indexes[1]
     assert.truthy(index)
-    assert.are.same(1, index)
     assert.truthy(internal_data.data[index])
     assert.truthy(internal_data.data[index].name)
     assert.are.same("submit-name", internal_data.data[index].name)
@@ -122,7 +124,9 @@ planetCRLFearth
     assert.truthy(internal_data.data[index].value)
     assert.are.same("Larry", internal_data.data[index].value)
 
-    index = internal_data.indexes["files"]
+    indexes = internal_data.indexes["files"]
+    assert.truthy(indexes)
+    index = indexes[1]
     assert.truthy(index)
     assert.are.same(2, index)
     assert.truthy(internal_data.data[index])
@@ -172,9 +176,11 @@ hello
     local internal_data = res._data
 
     -- Check internals
-    local index = internal_data.indexes["submit-name"]
+    local indexes = internal_data.indexes["submit-name"]
+    assert.truthy(indexes)
+    assert.are.same({1}, indexes)
+    local index = indexes[1]
     assert.truthy(index)
-    assert.are.same(1, index)
     assert.truthy(internal_data.data[index])
     assert.truthy(internal_data.data[index].name)
     assert.are.same("submit-name", internal_data.data[index].name)
@@ -184,7 +190,9 @@ hello
     assert.truthy(internal_data.data[index].value)
     assert.are.same("Larry", internal_data.data[index].value)
 
-    index = internal_data.indexes["files"]
+    indexes = internal_data.indexes["files"]
+    assert.truthy(indexes)
+    index = indexes[1]
     assert.truthy(index)
     assert.are.same(2, index)
     assert.truthy(internal_data.data[index])
@@ -217,6 +225,130 @@ hello
     assert.are.same("... contents of file1.txt ...\nhello", all["files"])
   end)
 
+  it("should decode a multipart body with multiple file parts and missing and repeating filename", function()
+
+    local content_type = "multipart/form-data; boundary=AaB03x"
+    local body = [[
+--AaB03x
+Content-Disposition: form-data; name="files"; filename="file1.txt"
+Content-Type: text/plain
+
+... contents of file1.txt ...
+--AaB03x
+Content-Disposition: form-data; name="files"; filename="file1.txt"
+Content-Type: text/plain
+
+... contents of file2.txt ...
+--AaB03x
+Content-Disposition: form-data; name="files";
+Content-Type: text/plain
+
+... contents of file3.txt ...
+--AaB03x
+Content-Disposition: form-data; name="files";
+Content-Type: text/plain
+
+... contents of file4.txt ...
+--AaB03x--]]
+
+    local res = Multipart(body, content_type)
+    assert.truthy(res)
+
+    local internal_data = res._data
+
+    -- Check internals
+    local indexes = internal_data.indexes["files"]
+    assert.truthy(indexes)
+    assert.are.same({1, 2, 3, 4}, indexes)
+    local index = indexes[1]
+    assert.truthy(index)
+    assert.truthy(internal_data.data[index])
+    assert.truthy(internal_data.data[index].name)
+    assert.are.same("files", internal_data.data[index].name)
+    assert.truthy(internal_data.data[index].headers)
+    assert.are.same({"Content-Disposition: form-data; name=\"files\"; filename=\"file1.txt\"", "Content-Type: text/plain"}, internal_data.data[index].headers)
+    assert.are.same(2, table_size(internal_data.data[index].headers))
+    assert.truthy(internal_data.data[index].value)
+    assert.are.same("... contents of file1.txt ...", internal_data.data[index].value)
+
+    index = indexes[2]
+    assert.truthy(internal_data.data[index])
+    assert.truthy(internal_data.data[index].name)
+    assert.are.same("files", internal_data.data[index].name)
+    assert.truthy(internal_data.data[index].headers)
+    assert.are.same({"Content-Disposition: form-data; name=\"files\"; filename=\"file1.txt\"", "Content-Type: text/plain"}, internal_data.data[index].headers)
+    assert.are.same(2, table_size(internal_data.data[index].headers))
+    assert.truthy(internal_data.data[index].value)
+    assert.are.same("... contents of file2.txt ...", internal_data.data[index].value)
+
+    index = indexes[3]
+    assert.truthy(index)
+    assert.are.same(3, index)
+    assert.truthy(internal_data.data[index])
+    assert.truthy(internal_data.data[index].name)
+    assert.are.same("files", internal_data.data[index].name)
+    assert.truthy(internal_data.data[index].headers)
+    assert.are.same({"Content-Disposition: form-data; name=\"files\";", "Content-Type: text/plain"}, internal_data.data[index].headers)
+    assert.are.same(2, table_size(internal_data.data[index].headers))
+    assert.truthy(internal_data.data[index].value)
+    assert.are.same("... contents of file3.txt ...", internal_data.data[index].value)
+
+    index = indexes[4]
+    assert.truthy(index)
+    assert.are.same(4, index)
+    assert.truthy(internal_data.data[index])
+    assert.truthy(internal_data.data[index].name)
+    assert.are.same("files", internal_data.data[index].name)
+    assert.truthy(internal_data.data[index].headers)
+    assert.are.same({"Content-Disposition: form-data; name=\"files\";", "Content-Type: text/plain"}, internal_data.data[index].headers)
+    assert.are.same(2, table_size(internal_data.data[index].headers))
+    assert.truthy(internal_data.data[index].value)
+    assert.are.same("... contents of file4.txt ...", internal_data.data[index].value)
+
+    -- Check interface
+    local param = res:get("files")
+    assert.truthy(param)
+    assert.are.same("files", param.name)
+    assert.are.same({"Content-Disposition: form-data; name=\"files\"; filename=\"file1.txt\"", "Content-Type: text/plain"}, param.headers)
+    assert.are.same("... contents of file1.txt ...", param.value)
+
+    local all = res:get_all()
+
+    assert.are.same(1, table_size(all))
+    assert.are.same("... contents of file1.txt ...", all["files"])
+
+    local as_array = res:get_as_array("files")
+    assert.truthy(as_array)
+    assert.are.same({
+      "... contents of file1.txt ...",
+      "... contents of file2.txt ...",
+      "... contents of file3.txt ...",
+      "... contents of file4.txt ...",
+    }, as_array)
+
+    local as_array_all = res:get_all_with_arrays()
+    assert.truthy(as_array_all)
+    as_array = as_array_all["files"]
+    assert.truthy(as_array)
+    assert.are.same({
+      "... contents of file1.txt ...",
+      "... contents of file2.txt ...",
+      "... contents of file3.txt ...",
+      "... contents of file4.txt ...",
+    }, as_array)
+
+    local with_array_all = res:get_all_as_arrays()
+    assert.truthy(with_array_all)
+    with_array = with_array_all["files"]
+    assert.truthy(with_array)
+    assert.are.same({
+      "... contents of file1.txt ...",
+      "... contents of file2.txt ...",
+      "... contents of file3.txt ...",
+      "... contents of file4.txt ...",
+    }, with_array)
+  end)
+
   it("should decode invalid empty multipart body", function()
     local content_type = "multipart/form-data; boundary=AaB03x"
     local body = "--\n"
@@ -240,9 +372,11 @@ Content-Disposition: form-data; name="submit-name"]]
     local internal_data = res._data
 
     -- Check internals
-    local index = internal_data.indexes["submit-name"]
+    local indexes = internal_data.indexes["submit-name"]
+    assert.truthy(indexes)
+    assert.are.same({1}, indexes)
+    local index = indexes[1]
     assert.truthy(index)
-    assert.are.same(1, index)
     assert.truthy(internal_data.data[index])
     assert.truthy(internal_data.data[index].name)
     assert.are.same("submit-name", internal_data.data[index].name)
@@ -279,9 +413,11 @@ Content-Disposition: form-data; name="submit-name"]]
 
     local internal_data = res._data
 
-    local index = internal_data.indexes["submit-name"]
+    local indexes = internal_data.indexes["submit-name"]
+    assert.truthy(indexes)
+    assert.are.same({1}, indexes)
+    local index = indexes[1]
     assert.truthy(index)
-    assert.are.same(1, index)
     assert.truthy(internal_data.data[index])
     assert.truthy(internal_data.data[index].name)
     assert.are.same("submit-name", internal_data.data[index].name)
@@ -306,9 +442,11 @@ Content-Disposition: form-data; name="submit-name"]]
 
     local internal_data = res._data
 
-    local index = internal_data.indexes["submit-name"]
+    local indexes = internal_data.indexes["submit-name"]
+    assert.truthy(indexes)
+    assert.are.same({1}, indexes)
+    local index = indexes[1]
     assert.truthy(index)
-    assert.are.same(1, index)
     assert.truthy(internal_data.data[index])
     assert.truthy(internal_data.data[index].name)
     assert.are.same("submit-name", internal_data.data[index].name)
@@ -344,9 +482,11 @@ hello
     local internal_data = res._data
 
     -- Check internals
-    local index = internal_data.indexes["submit-name"]
+    local indexes = internal_data.indexes["submit-name"]
+    assert.truthy(indexes)
+    assert.are.same({1}, indexes)
+    local index = indexes[1]
     assert.truthy(index)
-    assert.are.same(1, index)
     assert.truthy(internal_data.data[index])
     assert.truthy(internal_data.data[index].name)
     assert.are.same("submit-name", internal_data.data[index].name)
@@ -356,9 +496,11 @@ hello
     assert.truthy(internal_data.data[index].value)
     assert.are.same("Larry", internal_data.data[index].value)
 
-    index = internal_data.indexes["files"]
+    indexes = internal_data.indexes["files"]
+    assert.truthy(indexes)
+    assert.are.same({2}, indexes)
+    index = indexes[1]
     assert.truthy(index)
-    assert.are.same(2, index)
     assert.truthy(internal_data.data[index])
     assert.truthy(internal_data.data[index].name)
     assert.are.same("files", internal_data.data[index].name)
@@ -590,6 +732,136 @@ hello
     assert.are.same(#new_body, #data)
   end)
 
+  it("should encode a multipart body file with set param used", function()
+    local content_type = "multipart/form-data; boundary=AaB03x"
+    local body = [[
+--AaB03x
+Content-Disposition: form-data; name="submit-name"
+
+Larry
+--AaB03x
+Content-Disposition: form-data; name="files"; filename="file1.txt"
+Content-Type: text/plain
+
+... contents of file1.txt ...
+--AaB03x
+Content-Disposition: form-data; name="files"; filename="file2.txt"
+Content-Type: text/plain
+
+... contents of file2.txt ...
+--AaB03x--]]
+
+    local new_body = table.concat({
+    '--AaB03x',
+    'Content-Disposition: form-data; name="submit-name"',
+    '',
+    'Larry',
+    '--AaB03x',
+    'Content-Disposition: form-data; name="files"; filename="file1.txt"',
+    'Content-Type: text/plain',
+    '',
+    '... contents of file1.txt ...',
+    '--AaB03x',
+    'Content-Disposition: form-data; name="files"; filename="file2.txt"',
+    'Content-Type: text/plain',
+    '',
+    '... contents of file2.txt ...',
+    '--AaB03x',
+    'Content-Disposition: form-data; name="hello"',
+    '',
+    'world :)',
+    '--AaB03x',
+    'Content-Disposition: form-data; name="hello2"',
+    '',
+    'world2 :)',
+    '--AaB03x--\r\n',
+    }, "\r\n")
+
+    local res = Multipart(body, content_type)
+    assert.truthy(res)
+
+    res:set_simple("hello", "world :)")
+    res:set_simple("hello2", "world2 :)")
+
+    local data = res:tostring()
+    assert.are.same(new_body, data)
+  end)
+
+  it("should encode a multipart body file with set param used and same filename and skipped filename", function()
+    local content_type = "multipart/form-data; boundary=AaB03x"
+    local body = [[
+--AaB03x
+Content-Disposition: form-data; name="submit-name"
+
+Larry
+--AaB03x
+Content-Disposition: form-data; name="files"; filename="file1.txt"
+Content-Type: text/plain
+
+... contents of file1.txt ...
+--AaB03x
+Content-Disposition: form-data; name="files"; filename="file1.txt"
+Content-Type: text/plain
+
+... contents of file2.txt ...
+--AaB03x
+Content-Disposition: form-data; name="files";
+Content-Type: text/plain
+
+... contents of file3.txt ...
+--AaB03x
+Content-Disposition: form-data; name="files";
+Content-Type: text/plain
+
+... contents of file4.txt ...
+--AaB03x--]]
+
+    local new_body = table.concat({
+    '--AaB03x',
+    'Content-Disposition: form-data; name="submit-name"',
+    '',
+    'Larry',
+    '--AaB03x',
+    'Content-Disposition: form-data; name="files"; filename="file1.txt"',
+    'Content-Type: text/plain',
+    '',
+    '... contents of file1.txt ...',
+    '--AaB03x',
+    'Content-Disposition: form-data; name="files"; filename="file1.txt"',
+    'Content-Type: text/plain',
+    '',
+    '... contents of file2.txt ...',
+    '--AaB03x',
+    'Content-Disposition: form-data; name="files";',
+    'Content-Type: text/plain',
+    '',
+    '... contents of file3.txt ...',
+    '--AaB03x',
+    'Content-Disposition: form-data; name="files";',
+    'Content-Type: text/plain',
+    '',
+    '... contents of file4.txt ...',
+    '--AaB03x',
+    'Content-Disposition: form-data; name="hello"',
+    '',
+    'world :)',
+    '--AaB03x',
+    'Content-Disposition: form-data; name="hello2"',
+    '',
+    'world2 :)',
+    '--AaB03x--\r\n',
+    }, "\r\n")
+
+    local res = Multipart(body, content_type)
+    assert.truthy(res)
+
+    res:set_simple("hello", "world :)")
+    res:set_simple("hello2", "world2 :)")
+
+    local data = res:tostring()
+    assert.are.same(new_body, data)
+  end)
+
 end)
 
 it("should encode a multipart body with invalid boundary in parsed one", function()
@@ -630,6 +902,7 @@ hello
   local data = res:tostring()
   assert.are.same(new_body, data)
 end)
+
 it("set a file example", function()
     local content_type = "multipart/related; boundary=0f755aa8"
     local body = ""
@@ -644,4 +917,68 @@ it("set a file example", function()
         'Content-Disposition: form-data; name="example"; filename="example.txt"',"content-type: text/txt", "\r\nhello world\n", "--0f755aa8--\r\n"
     }, "\r\n")
     assert.are.same(example_body, body)
+end)
+
+it("for repeating part_names test get, get_as_array, get_all, get_all_as_arrays, get_all_with_arrays", function()
+    local content_type = "multipart/form-data; boundary=AaB03x"
+    local body = [[
+--AaB03x
+Content-Disposition: form-data; name="submit-name"
+
+Larry
+--AaB03x
+Content-Disposition: form-data; name="files"; filename="file1.txt"
+Content-Type: text/plain
+
+... contents of file1.txt ...
+--AaB03x
+Content-Disposition: form-data; name="files"
+Content-Type: text/plain
+
+... contents of file2.txt ...
+--AaB03x
+Content-Disposition: form-data; name="hello"
+
+world :)
+--AaB03x
+Content-Disposition: form-data; name="hello2"
+
+world2 :)
+--AaB03x--]]
+
+    local res = Multipart(body, content_type)
+    assert.truthy(res)
+
+    -- get should return fist occurance for repeating part names
+    assert.are.same("... contents of file1.txt ...", res:get("files").value)
+    assert.are.same("Larry", res:get("submit-name").value)
+    assert.are.same("world :)", res:get("hello").value)
+    assert.are.same("world2 :)", res:get("hello2").value)
+
+    local all = res:get_all()
+    assert.are.same(4, table_size(all))
+    assert.are.same("... contents of file1.txt ...", all["files"])
+    assert.are.same("Larry", all["submit-name"])
+    assert.are.same("world :)", all["hello"])
+    assert.are.same("world2 :)", all["hello2"])
+
+    all = res:get_all_with_arrays()
+    assert.are.same(4, table_size(all))
+    assert.are.same({
+      "... contents of file1.txt ...",
+      "... contents of file2.txt ...",
+    }, all["files"])
+    assert.are.same("Larry", all["submit-name"])
+    assert.are.same("world :)", all["hello"])
+    assert.are.same("world2 :)", all["hello2"])
+
+    all = res:get_all_as_arrays()
+    assert.are.same(4, table_size(all))
+    assert.are.same({
+      "... contents of file1.txt ...",
+      "... contents of file2.txt ...",
+    }, all["files"])
+    assert.are.same({"Larry"}, all["submit-name"])
+    assert.are.same({"world :)"}, all["hello"])
+    assert.are.same({"world2 :)"}, all["hello2"])
   end)

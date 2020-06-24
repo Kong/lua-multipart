@@ -115,7 +115,10 @@ local function decode(body, boundary)
             value   = concat(part_value)
           }
 
-          result.indexes[part_name] = part_index
+          if result.indexes[part_name] == nil then
+            result.indexes[part_name] = {}
+          end
+          table.insert(result.indexes[part_name], part_index)
 
           -- Reset fields for the next part
           part_headers  = {}
@@ -177,8 +180,7 @@ local function decode(body, boundary)
       headers = part_headers,
       value   = concat(part_value)
     }
-
-    result.indexes[part_name] = part_index
+    result.indexes[part_name] = {part_index}
   end
 
   return result
@@ -256,7 +258,8 @@ end
 
 
 function MultipartData:get(name)
-  return self._data.data[self._data.indexes[name]]
+  -- Get first index for part
+  return self._data.data[self._data.indexes[name][1]]
 end
 
 
@@ -264,7 +267,44 @@ function MultipartData:get_all()
   local result = {}
 
   for k, v in pairs(self._data.indexes) do
-    result[k] = self._data.data[v].value
+    -- Get first index for part
+    result[k] = self._data.data[v[1]].value
+  end
+
+  return result
+end
+
+
+function MultipartData:get_as_array(name)
+  local vals = {}
+  for _, index in ipairs(self._data.indexes[name]) do
+    table.insert(vals, self._data.data[index].value)
+  end
+  return vals
+end
+
+
+function MultipartData:get_all_as_arrays()
+  -- Get all fields as arrays
+  local result = {}
+
+  for k, v in pairs(self._data.indexes) do
+    result[k] = self:get_as_array(k)
+  end
+
+  return result
+end
+
+function MultipartData:get_all_with_arrays()
+  -- Get repeating fields as arrays, rest as strings
+  local result = {}
+
+  for k, v in pairs(self._data.indexes) do
+    if #v == 1 then
+      result[k] = self._data.data[v[1]].value
+    else
+      result[k] = self:get_as_array(k)
+    end
   end
 
   return result
@@ -284,15 +324,25 @@ function MultipartData:set_simple(name, value, filename, content_type)
     end
     headers = concat(headers)
     if self._data.indexes[name] then
-      self._data.data[self._data.indexes[name]] = {
+      self._data.data[self._data.indexes[name][1]] = {
         name = name,
         value = value,
         headers = {headers}
       }
 
     else
-      local part_index = table_size(self._data.indexes) + 1
-      self._data.indexes[name] = part_index
+      -- Find maxium index
+      local max_index = 0
+      for k, indexes in pairs(self._data.indexes) do
+        for i, index in ipairs(indexes) do
+          if index > max_index then
+            max_index = index
+          end
+        end
+      end
+      -- Assign data to new index
+      local part_index = max_index + 1
+      self._data.indexes[name] = {part_index}
       self._data.data[part_index] = {
         name    = name,
         value   = value,
@@ -303,16 +353,28 @@ end
 
 
 function MultipartData:delete(name)
-  local index = self._data.indexes[name]
+  -- If part name repeats, then delete all occurances.
+  local indexes = self._data.indexes[name]
 
-  if index then
-     remove(self._data.data, index)
-     self._data.indexes[name] = nil
+  if indexes ~= nil then
+    for i, index in ipairs(indexes) do
+      remove(self._data.data, index)
+    end
+    self._data.indexes[name] = nil
 
     -- need to recount index
-    for key, value in pairs(self._data.indexes) do
-      if value > index then
-        self._data.indexes[key] = value - 1
+    -- Deleted indexes can be anywhere,
+    -- including between values of indexes for single part name.
+    -- For every index, need to count how many deleted indexes are bellow it
+    for key, index_vals in pairs(self._data.indexes) do
+      for i, val in ipairs(index_vals) do
+        local num_deleted = 0
+        for _, del_index in ipairs(indexes) do
+          if val > del_index then
+            num_deleted = num_deleted + 1
+          end
+        end
+        self._data.indexes[key][i] = val - num_deleted
       end
     end
   end
