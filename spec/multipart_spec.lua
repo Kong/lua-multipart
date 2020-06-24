@@ -152,6 +152,11 @@ planetCRLFearth
     assert.are.same({"Content-Disposition: form-data; name=\"files\"; filename=\"file1.txt\"", "Content-Type: text/plain"}, param.headers)
     assert.are.same("... contents of file1.txt ...\nhello\n\nplanet\r\nearth", param.value)
 
+    local param = res:get("inexistent")
+    assert.is_nil(param)
+
+    local param = res:get_as_array("inexistent")
+    assert.same({}, param)
   end)
 
   it("should decode a multipart body", function()
@@ -217,6 +222,14 @@ hello
     assert.are.same("files", param.name)
     assert.are.same({"Content-Disposition: form-data; name=\"files\"; filename=\"file1.txt\"", "Content-Type: text/plain"}, param.headers)
     assert.are.same("... contents of file1.txt ...\nhello", param.value)
+
+
+    local param = res:get("inexistent")
+    assert.is_nil(param)
+
+    local param = res:get_as_array("inexistent")
+    assert.same({}, param)
+
 
     local all = res:get_all()
 
