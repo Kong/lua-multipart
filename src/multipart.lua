@@ -106,6 +106,7 @@ local function decode(body, boundary)
           if result.indexes[part_name] == nil then
             result.indexes[part_name] = {}
           end
+
           insert(result.indexes[part_name], part_index)
 
           -- Reset fields for the next part
@@ -168,7 +169,7 @@ local function decode(body, boundary)
       headers = part_headers,
       value   = concat(part_value)
     }
-    result.indexes[part_name] = {part_index}
+    result.indexes[part_name] = { part_index }
   end
 
   return result
@@ -247,7 +248,12 @@ end
 
 function MultipartData:get(name)
   -- Get first index for part
-  return self._data.data[self._data.indexes[name][1]]
+  local index = self._data.indexes[name]
+  if not index then
+    return nil
+  end
+
+  return self._data.data[index[1]]
 end
 
 
@@ -265,9 +271,16 @@ end
 
 function MultipartData:get_as_array(name)
   local vals = {}
+
+  local idx = self._data.indexes[name]
+  if not idx then
+    return vals
+  end
+
   for _, index in ipairs(self._data.indexes[name]) do
     insert(vals, self._data.data[index].value)
   end
+
   return vals
 end
 
@@ -315,11 +328,11 @@ function MultipartData:set_simple(name, value, filename, content_type)
       self._data.data[self._data.indexes[name][1]] = {
         name = name,
         value = value,
-        headers = {headers}
+        headers = { headers }
       }
 
     else
-      -- Find maxium index
+      -- Find maximum index
       local max_index = 0
       for _, indexes in pairs(self._data.indexes) do
         for _, index in ipairs(indexes) do
@@ -330,18 +343,18 @@ function MultipartData:set_simple(name, value, filename, content_type)
       end
       -- Assign data to new index
       local part_index = max_index + 1
-      self._data.indexes[name] = {part_index}
+      self._data.indexes[name] = { part_index }
       self._data.data[part_index] = {
         name    = name,
         value   = value,
-        headers = {headers}
+        headers = { headers }
       }
     end
 end
 
 
 function MultipartData:delete(name)
-  -- If part name repeats, then delete all occurances.
+  -- If part name repeats, then delete all occurrences
   local indexes = self._data.indexes[name]
 
   if indexes ~= nil then
