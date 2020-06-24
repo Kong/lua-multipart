@@ -31,18 +31,6 @@ local function is_header(value)
 end
 
 
-local function table_size(t)
-  local res = 0
-
-  if t then
-    for _,_ in pairs(t) do
-      res = res + 1
-    end
-  end
-
-  return res
-end
-
 -- Create a table representation of multipart/data body
 --
 -- @param {string} body The multipart/data string body
@@ -118,7 +106,7 @@ local function decode(body, boundary)
           if result.indexes[part_name] == nil then
             result.indexes[part_name] = {}
           end
-          table.insert(result.indexes[part_name], part_index)
+          insert(result.indexes[part_name], part_index)
 
           -- Reset fields for the next part
           part_headers  = {}
@@ -278,7 +266,7 @@ end
 function MultipartData:get_as_array(name)
   local vals = {}
   for _, index in ipairs(self._data.indexes[name]) do
-    table.insert(vals, self._data.data[index].value)
+    insert(vals, self._data.data[index].value)
   end
   return vals
 end
@@ -288,7 +276,7 @@ function MultipartData:get_all_as_arrays()
   -- Get all fields as arrays
   local result = {}
 
-  for k, v in pairs(self._data.indexes) do
+  for k in pairs(self._data.indexes) do
     result[k] = self:get_as_array(k)
   end
 
@@ -333,8 +321,8 @@ function MultipartData:set_simple(name, value, filename, content_type)
     else
       -- Find maxium index
       local max_index = 0
-      for k, indexes in pairs(self._data.indexes) do
-        for i, index in ipairs(indexes) do
+      for _, indexes in pairs(self._data.indexes) do
+        for _, index in ipairs(indexes) do
           if index > max_index then
             max_index = index
           end
@@ -357,7 +345,7 @@ function MultipartData:delete(name)
   local indexes = self._data.indexes[name]
 
   if indexes ~= nil then
-    for i, index in ipairs(indexes) do
+    for _, index in ipairs(indexes) do
       remove(self._data.data, index)
     end
     self._data.indexes[name] = nil
