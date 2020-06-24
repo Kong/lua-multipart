@@ -110,9 +110,11 @@ planetCRLFearth
     local internal_data = res._data
 
     -- Check internals
-    local index = internal_data.indexes["submit-name"]
+    local indexes = internal_data.indexes["submit-name"]
+    assert.truthy(indexes)
+    assert.are.same({1}, indexes)
+    local index = indexes[1]
     assert.truthy(index)
-    assert.are.same(1, index)
     assert.truthy(internal_data.data[index])
     assert.truthy(internal_data.data[index].name)
     assert.are.same("submit-name", internal_data.data[index].name)
@@ -122,7 +124,9 @@ planetCRLFearth
     assert.truthy(internal_data.data[index].value)
     assert.are.same("Larry", internal_data.data[index].value)
 
-    index = internal_data.indexes["files"]
+    indexes = internal_data.indexes["files"]
+    assert.truthy(indexes)
+    index = indexes[1]
     assert.truthy(index)
     assert.are.same(2, index)
     assert.truthy(internal_data.data[index])
@@ -172,9 +176,11 @@ hello
     local internal_data = res._data
 
     -- Check internals
-    local index = internal_data.indexes["submit-name"]
+    local indexes = internal_data.indexes["submit-name"]
+    assert.truthy(indexes)
+    assert.are.same({1}, indexes)
+    local index = indexes[1]
     assert.truthy(index)
-    assert.are.same(1, index)
     assert.truthy(internal_data.data[index])
     assert.truthy(internal_data.data[index].name)
     assert.are.same("submit-name", internal_data.data[index].name)
@@ -184,7 +190,9 @@ hello
     assert.truthy(internal_data.data[index].value)
     assert.are.same("Larry", internal_data.data[index].value)
 
-    index = internal_data.indexes["files"]
+    indexes = internal_data.indexes["files"]
+    assert.truthy(indexes)
+    index = indexes[1]
     assert.truthy(index)
     assert.are.same(2, index)
     assert.truthy(internal_data.data[index])
@@ -249,9 +257,11 @@ Content-Type: text/plain
     local internal_data = res._data
 
     -- Check internals
-    local index = internal_data.indexes["files"]
+    local indexes = internal_data.indexes["files"]
+    assert.truthy(indexes)
+    assert.are.same({1, 2, 3, 4}, indexes)
+    local index = indexes[1]
     assert.truthy(index)
-    assert.are.same(1, index)
     assert.truthy(internal_data.data[index])
     assert.truthy(internal_data.data[index].name)
     assert.are.same("files", internal_data.data[index].name)
@@ -261,9 +271,7 @@ Content-Type: text/plain
     assert.truthy(internal_data.data[index].value)
     assert.are.same("... contents of file1.txt ...", internal_data.data[index].value)
 
-    index = internal_data.indexes["files_part_number_2"]
-    assert.truthy(index)
-    assert.are.same(2, index)
+    index = indexes[2]
     assert.truthy(internal_data.data[index])
     assert.truthy(internal_data.data[index].name)
     assert.are.same("files", internal_data.data[index].name)
@@ -273,7 +281,7 @@ Content-Type: text/plain
     assert.truthy(internal_data.data[index].value)
     assert.are.same("... contents of file2.txt ...", internal_data.data[index].value)
 
-    index = internal_data.indexes["files_part_number_3"]
+    index = indexes[3]
     assert.truthy(index)
     assert.are.same(3, index)
     assert.truthy(internal_data.data[index])
@@ -285,7 +293,7 @@ Content-Type: text/plain
     assert.truthy(internal_data.data[index].value)
     assert.are.same("... contents of file3.txt ...", internal_data.data[index].value)
 
-    index = internal_data.indexes["files_part_number_4"]
+    index = indexes[4]
     assert.truthy(index)
     assert.are.same(4, index)
     assert.truthy(internal_data.data[index])
@@ -306,11 +314,29 @@ Content-Type: text/plain
 
     local all = res:get_all()
 
-    assert.are.same(4, table_size(all))
+    assert.are.same(1, table_size(all))
     assert.are.same("... contents of file1.txt ...", all["files"])
-    assert.are.same("... contents of file2.txt ...", all["files_part_number_2"])
-    assert.are.same("... contents of file3.txt ...", all["files_part_number_3"])
-    assert.are.same("... contents of file4.txt ...", all["files_part_number_4"])
+
+    local as_array = res:get_as_array("files")
+    assert.truthy(as_array)
+    assert.are.same({
+      "... contents of file1.txt ...",
+      "... contents of file2.txt ...",
+      "... contents of file3.txt ...",
+      "... contents of file4.txt ...",
+    }, as_array)
+
+    local as_array_all = res:get_all_with_arrays()
+    assert.truthy(as_array_all)
+    as_array = as_array_all["files"]
+    assert.truthy(as_array)
+    assert.are.same({
+      "... contents of file1.txt ...",
+      "... contents of file2.txt ...",
+      "... contents of file3.txt ...",
+      "... contents of file4.txt ...",
+    }, as_array)
+
   end)
 
   it("should decode invalid empty multipart body", function()
@@ -336,9 +362,11 @@ Content-Disposition: form-data; name="submit-name"]]
     local internal_data = res._data
 
     -- Check internals
-    local index = internal_data.indexes["submit-name"]
+    local indexes = internal_data.indexes["submit-name"]
+    assert.truthy(indexes)
+    assert.are.same({1}, indexes)
+    local index = indexes[1]
     assert.truthy(index)
-    assert.are.same(1, index)
     assert.truthy(internal_data.data[index])
     assert.truthy(internal_data.data[index].name)
     assert.are.same("submit-name", internal_data.data[index].name)
@@ -375,9 +403,11 @@ Content-Disposition: form-data; name="submit-name"]]
 
     local internal_data = res._data
 
-    local index = internal_data.indexes["submit-name"]
+    local indexes = internal_data.indexes["submit-name"]
+    assert.truthy(indexes)
+    assert.are.same({1}, indexes)
+    local index = indexes[1]
     assert.truthy(index)
-    assert.are.same(1, index)
     assert.truthy(internal_data.data[index])
     assert.truthy(internal_data.data[index].name)
     assert.are.same("submit-name", internal_data.data[index].name)
@@ -402,9 +432,11 @@ Content-Disposition: form-data; name="submit-name"]]
 
     local internal_data = res._data
 
-    local index = internal_data.indexes["submit-name"]
+    local indexes = internal_data.indexes["submit-name"]
+    assert.truthy(indexes)
+    assert.are.same({1}, indexes)
+    local index = indexes[1]
     assert.truthy(index)
-    assert.are.same(1, index)
     assert.truthy(internal_data.data[index])
     assert.truthy(internal_data.data[index].name)
     assert.are.same("submit-name", internal_data.data[index].name)
@@ -440,9 +472,11 @@ hello
     local internal_data = res._data
 
     -- Check internals
-    local index = internal_data.indexes["submit-name"]
+    local indexes = internal_data.indexes["submit-name"]
+    assert.truthy(indexes)
+    assert.are.same({1}, indexes)
+    local index = indexes[1]
     assert.truthy(index)
-    assert.are.same(1, index)
     assert.truthy(internal_data.data[index])
     assert.truthy(internal_data.data[index].name)
     assert.are.same("submit-name", internal_data.data[index].name)
@@ -452,9 +486,11 @@ hello
     assert.truthy(internal_data.data[index].value)
     assert.are.same("Larry", internal_data.data[index].value)
 
-    index = internal_data.indexes["files"]
+    indexes = internal_data.indexes["files"]
+    assert.truthy(indexes)
+    assert.are.same({2}, indexes)
+    index = indexes[1]
     assert.truthy(index)
-    assert.are.same(2, index)
     assert.truthy(internal_data.data[index])
     assert.truthy(internal_data.data[index].name)
     assert.are.same("files", internal_data.data[index].name)
@@ -738,7 +774,7 @@ Content-Type: text/plain
     res:set_simple("hello2", "world2 :)")
 
     local data = res:tostring()
-    assert.are.same(#new_body, #data)
+    assert.are.same(new_body, data)
   end)
 
   it("should encode a multipart body file with set param used and same filename and skipped filename", function()
@@ -813,7 +849,7 @@ Content-Type: text/plain
     res:set_simple("hello2", "world2 :)")
 
     local data = res:tostring()
-    assert.are.same(#new_body, #data)
+    assert.are.same(new_body, data)
   end)
 
 end)
@@ -856,6 +892,7 @@ hello
   local data = res:tostring()
   assert.are.same(new_body, data)
 end)
+
 it("set a file example", function()
     local content_type = "multipart/related; boundary=0f755aa8"
     local body = ""
