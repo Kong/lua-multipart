@@ -43,7 +43,6 @@ local function table_size(t)
   return res
 end
 
-
 -- Create a table representation of multipart/data body
 --
 -- @param {string} body The multipart/data string body
@@ -294,7 +293,6 @@ function MultipartData:get_all_with_arrays()
 
   return result
 end
-
 
 
 function MultipartData:set_simple(name, value, filename, content_type)
