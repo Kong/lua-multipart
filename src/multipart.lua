@@ -284,11 +284,27 @@ function MultipartData:get_as_array(name)
 end
 
 
-function MultipartData:get_all_with_arrays()
+function MultipartData:get_all_as_arrays()
+  -- Get all fields as arrays
   local result = {}
 
   for k, v in pairs(self._data.indexes) do
     result[k] = self:get_as_array(k)
+  end
+
+  return result
+end
+
+function MultipartData:get_all_with_arrays()
+  -- Get repeating fields as arrays, rest as strings
+  local result = {}
+
+  for k, v in pairs(self._data.indexes) do
+    if #v == 1 then
+      result[k] = self._data.data[v[1]].value
+    else
+      result[k] = self:get_as_array(k)
+    end
   end
 
   return result

@@ -337,6 +337,16 @@ Content-Type: text/plain
       "... contents of file4.txt ...",
     }, as_array)
 
+    local with_array_all = res:get_all_as_arrays()
+    assert.truthy(with_array_all)
+    with_array = with_array_all["files"]
+    assert.truthy(with_array)
+    assert.are.same({
+      "... contents of file1.txt ...",
+      "... contents of file2.txt ...",
+      "... contents of file3.txt ...",
+      "... contents of file4.txt ...",
+    }, with_array)
   end)
 
   it("should decode invalid empty multipart body", function()
@@ -907,4 +917,68 @@ it("set a file example", function()
         'Content-Disposition: form-data; name="example"; filename="example.txt"',"content-type: text/txt", "\r\nhello world\n", "--0f755aa8--\r\n"
     }, "\r\n")
     assert.are.same(example_body, body)
+end)
+
+it("for repeating part_names test get, get_as_array, get_all, get_all_as_arrays, get_all_with_arrays", function()
+    local content_type = "multipart/form-data; boundary=AaB03x"
+    local body = [[
+--AaB03x
+Content-Disposition: form-data; name="submit-name"
+
+Larry
+--AaB03x
+Content-Disposition: form-data; name="files"; filename="file1.txt"
+Content-Type: text/plain
+
+... contents of file1.txt ...
+--AaB03x
+Content-Disposition: form-data; name="files"
+Content-Type: text/plain
+
+... contents of file2.txt ...
+--AaB03x
+Content-Disposition: form-data; name="hello"
+
+world :)
+--AaB03x
+Content-Disposition: form-data; name="hello2"
+
+world2 :)
+--AaB03x--]]
+
+    local res = Multipart(body, content_type)
+    assert.truthy(res)
+
+    -- get should return fist occurance for repeating part names
+    assert.are.same("... contents of file1.txt ...", res:get("files").value)
+    assert.are.same("Larry", res:get("submit-name").value)
+    assert.are.same("world :)", res:get("hello").value)
+    assert.are.same("world2 :)", res:get("hello2").value)
+
+    local all = res:get_all()
+    assert.are.same(4, table_size(all))
+    assert.are.same("... contents of file1.txt ...", all["files"])
+    assert.are.same("Larry", all["submit-name"])
+    assert.are.same("world :)", all["hello"])
+    assert.are.same("world2 :)", all["hello2"])
+
+    all = res:get_all_with_arrays()
+    assert.are.same(4, table_size(all))
+    assert.are.same({
+      "... contents of file1.txt ...",
+      "... contents of file2.txt ...",
+    }, all["files"])
+    assert.are.same("Larry", all["submit-name"])
+    assert.are.same("world :)", all["hello"])
+    assert.are.same("world2 :)", all["hello2"])
+
+    all = res:get_all_as_arrays()
+    assert.are.same(4, table_size(all))
+    assert.are.same({
+      "... contents of file1.txt ...",
+      "... contents of file2.txt ...",
+    }, all["files"])
+    assert.are.same({"Larry"}, all["submit-name"])
+    assert.are.same({"world :)"}, all["hello"])
+    assert.are.same({"world2 :)"}, all["hello2"])
   end)
