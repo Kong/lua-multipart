@@ -27,7 +27,7 @@ setmetatable(MultipartData, {
 
 
 local function is_header(value)
-  return match(value, "(%S+):%s*(%S+)")
+  return match(value, "%S:%s*%S")
 end
 
 
