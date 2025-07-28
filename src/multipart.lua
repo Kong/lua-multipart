@@ -227,7 +227,7 @@ function MultipartData.new(data, content_type)
   local instance = setmetatable({}, MultipartData)
 
   if content_type then
-    local boundary = match(content_type, ";%s*boundary=(%S+)")
+    local boundary = match(content_type, ";%s*boundary=([^;%s]+)")
     if boundary then
       if (sub(boundary, 1, 1) == '"' and sub(boundary, -1)  == '"') or
          (sub(boundary, 1, 1) == "'" and sub(boundary, -1)  == "'") then
