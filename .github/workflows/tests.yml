@@ -1,0 +1,70 @@
+name: Test
+
+on: [push, pull_request]
+
+env:
+  LIBEXPAT_DOWNLOAD_URL: https://github.com/libexpat/libexpat/releases/download/R_2_5_0/expat-2.5.0.tar.gz
+
+jobs:
+
+  tests:
+    name: Busted Tests
+
+    strategy:
+      matrix:
+        openresty_version:
+          - 1.17.8.2
+          - 1.19.9.1
+          - 1.27.1.1
+
+    runs-on: ubuntu-latest
+    container:
+      image: openresty/openresty:${{ matrix.openresty_version }}-alpine-fat
+      # --init runs tinit as PID 1 and prevents the 'WARNING: killing the child process' spam from the test suite
+      options: --init
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install deps
+      run: |
+        apk add --no-cache curl perl bash wget git perl-dev libarchive-tools nodejs jq
+        ln -s /usr/bin/bsdtar /usr/bin/tar
+
+    - name: Build libexpat
+      if: matrix.openresty_version == '1.17.8.2'
+      run: |
+        mkdir -p /tmp/expat
+        curl -Ls $LIBEXPAT_DOWNLOAD_URL | tar -xz --strip-components=1 -f - -C /tmp/expat
+        cd /tmp/expat && ./configure && make && make install
+
+    - name: Install libexpat from package manager
+      if: matrix.openresty_version == '1.19.9.1'
+      run: |
+        apk add --no-cache expat-dev
+
+    - name: Cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache
+        key: ${{ runner.os }}-${{ matrix.openresty_version }}-cache
+
+    - name: Install Busted
+      run: |
+        wget https://luarocks.github.io/luarocks/releases/luarocks-3.12.2.tar.gz
+        tar zxvf luarocks-3.12.2.tar.gz 
+        cd luarocks-3.12.2
+        ./configure   --lua-version=5.1   --with-lua-include=/usr/local/openresty/luajit/include/luajit-2.1   --with-lua-lib=/usr/local/openresty/luajit/lib
+        make
+        make install
+        export PATH=/usr/local/bin:$PATH
+        luarocks install busted
+        luarocks install luatz
+        luarocks install luasocket
+
+    - uses: actions/checkout@v2
+
+    - name: Run tests
+      run: |
+        luarocks make
+        busted
