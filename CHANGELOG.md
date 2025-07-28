@@ -1,6 +1,14 @@
 # Table of Contents
 
+- [v0.5.10](#v0510)
 - [v0.5.9](#v059)
+
+## [v0.5.10]
+
+> Released 2025/07/28
+
+### Features
+- Add `get_all_include_headers_with_arrays()` function to get struct headers informations.
 
 ## [v0.5.9]
 
