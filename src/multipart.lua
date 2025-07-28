@@ -284,6 +284,78 @@ function MultipartData:get_as_array(name)
   return vals
 end
 
+local function parse_headers(headers)
+  local results = {}
+  for _, header in ipairs(headers) do
+    for v in header:gmatch("[^;]+") do
+        -- clean up whitespace around the part
+        v = v:match("^%s*(.-)%s*$")
+
+        -- match key="value" pattern
+        local key, value = string.match(v, "([^=]+)=\"([^\"]*)")
+        if key and value then
+            -- clean up whitespace around key
+            key = key:match("^%s*(.-)%s*$")
+            results[key:lower()] = value
+        else
+            -- match key=value pattern without quotes (for RFC 5987 extended parameters)
+            key, value = string.match(v, "([^=]+)=([^%s]*)")
+            if key and value then
+                key = key:match("^%s*(.-)%s*$")
+                local lower_key = key:lower()
+
+                -- Handle RFC 5987 encoded parameters (like filename*)
+                if lower_key:match("%*$") then
+                    -- Parse charset'lang'encoded-value format
+                    local charset, lang, encoded = value:match("([^']*)'([^']*)'(.+)")
+                    if charset and encoded then
+                        -- URL decode the encoded value
+                        local decoded = encoded:gsub("%%(%x%x)", function(hex)
+                            return string.char(tonumber(hex, 16))
+                        end)
+                        results[lower_key] = {
+                            charset = charset,
+                            lang = lang or "",
+                            value = decoded
+                        }
+                    else
+                        results[lower_key] = value
+                    end
+                else
+                    results[lower_key] = value
+                end
+            end
+        end
+
+        -- match key:value pattern without quotes (for header values)
+        key, value = string.match(v, "([^:]+):%s*(.+)")
+        if key and value then
+            -- clean up whitespace around key
+            key = key:match("^%s*(.-)%s*$")
+            results[key:lower()] = value
+        end
+    end
+  end
+  return results
+end
+
+function MultipartData:get_with_headers_as_array(name)
+  local vals = {}
+
+  local idx = self._data.indexes[name]
+  if not idx then
+    return vals
+  end
+
+  for _, index in ipairs(self._data.indexes[name]) do
+    insert(vals, {
+      value   = self._data.data[index].value,
+      headers = parse_headers(self._data.data[index].headers)
+    })
+  end
+
+  return vals
+end
 
 function MultipartData:get_all_as_arrays()
   -- Get all fields as arrays
@@ -305,6 +377,24 @@ function MultipartData:get_all_with_arrays()
       result[k] = self._data.data[v[1]].value
     else
       result[k] = self:get_as_array(k)
+    end
+  end
+
+  return result
+end
+
+function MultipartData:get_all_include_headers_with_arrays()
+  -- Get repeating fields as arrays, rest as strings
+  local result = {}
+
+  for k, v in pairs(self._data.indexes) do
+    if #v == 1 then
+      result[k] = { {
+        value   = self._data.data[v[1]].value,
+        headers = parse_headers(self._data.data[v[1]].headers)
+      }}
+    else
+      result[k] = self:get_with_headers_as_array(k)
     end
   end
 
