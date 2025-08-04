@@ -284,60 +284,33 @@ function MultipartData:get_as_array(name)
   return vals
 end
 
+
+local req_headers_mt = {
+    __index = function (tb, key)
+        key = key:lower()
+        local value = rawget(tb, key)
+        if value == nil and key:find('_', 1, true) then
+            value = rawget(tb, key:gsub('_', '-'))
+        end
+        return value
+    end
+}
+
 local function parse_headers(headers)
   local results = {}
   for _, header in ipairs(headers) do
-    for v in header:gmatch("[^;]+") do
-        -- clean up whitespace around the part
-        v = v:match("^%s*(.-)%s*$")
-
-        -- match key="value" pattern
-        local key, value = string.match(v, "([^=]+)=\"([^\"]*)")
-        if key and value then
-            -- clean up whitespace around key
-            key = key:match("^%s*(.-)%s*$")
-            results[key:lower()] = value
-        else
-            -- match key=value pattern without quotes (for RFC 5987 extended parameters)
-            key, value = string.match(v, "([^=]+)=([^%s]*)")
-            if key and value then
-                key = key:match("^%s*(.-)%s*$")
-                local lower_key = key:lower()
-
-                -- Handle RFC 5987 encoded parameters (like filename*)
-                if lower_key:match("%*$") then
-                    -- Parse charset'lang'encoded-value format
-                    local charset, lang, encoded = value:match("([^']*)'([^']*)'(.+)")
-                    if charset and encoded then
-                        -- URL decode the encoded value
-                        local decoded = encoded:gsub("%%(%x%x)", function(hex)
-                            return string.char(tonumber(hex, 16))
-                        end)
-                        results[lower_key] = {
-                            charset = charset,
-                            lang = lang or "",
-                            value = decoded
-                        }
-                    else
-                        results[lower_key] = value
-                    end
-                else
-                    results[lower_key] = value
-                end
-            end
-        end
-
-        -- match key:value pattern without quotes (for header values)
-        key, value = string.match(v, "([^:]+):%s*(.+)")
-        if key and value then
-            -- clean up whitespace around key
-            key = key:match("^%s*(.-)%s*$")
-            results[key:lower()] = value
-        end
+    -- match key:value pattern without quotes (for header values)
+    local key, value = string.match(header, "([^:]+):%s*(.+)")
+    if key and value then
+        -- clean up whitespace around key
+        key = key:match("^%s*(.-)%s*$")
+        results[key:lower()] = value
     end
   end
-  return results
+
+  return setmetatable(results, req_headers_mt)
 end
+
 
 function MultipartData:get_with_headers_as_array(name)
   local vals = {}
