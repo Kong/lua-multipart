@@ -1,7 +1,15 @@
 # Table of Contents
 
+- [v0.5.11](#v0511)
 - [v0.5.10](#v0510)
 - [v0.5.9](#v059)
+
+## [v0.5.11]
+
+> Released 2025/08/05
+
+### Fixes
+- fix: remove parts from `get_all_include_headers_with_arrays()` headers
 
 ## [v0.5.10]
 
