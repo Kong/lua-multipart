@@ -352,7 +352,7 @@ Content-Type: text/plain
 
     local with_array_all = res:get_all_as_arrays()
     assert.truthy(with_array_all)
-    with_array = with_array_all["files"]
+    local with_array = with_array_all["files"]
     assert.truthy(with_array)
     assert.are.same({
       "... contents of file1.txt ...",
@@ -367,7 +367,6 @@ Content-Type: text/plain
     local body = "--\n"
     local res = Multipart(body, content_type)
     assert.truthy(res)
-    local internal_data = res._data
     local all = res:get_all()
     assert.are.same(0, table_size(all))
   end)
@@ -892,7 +891,6 @@ Content-Type: text/plain
 hello
 --AaB03x--]]
 
-  local res = Multipart(body, content_type)
 
   local new_body = table.concat({
     '--' .. Multipart.RANDOM_BOUNDARY,
@@ -1017,33 +1015,16 @@ Content-Type: image/jpeg
     assert.are.same(6, table_size(all_with_headers))
     assert.are.same("... contents of file1.txt ...", all_with_headers["files"][1].value)
     assert.are.same("... contents of file2.txt ...", all_with_headers["files"][2].value)
-    assert.are.same("submit-name", all_with_headers["submit-name"][1].headers["name"])
-    assert.are.same("form-data", all_with_headers["submit-name"][1].headers["content-disposition"])
+    assert.are.same('form-data; name="submit-name"', all_with_headers["submit-name"][1].headers["content-disposition"])
     assert.are.same("... contents of simple.txt ...", all_with_headers["files-utf8"][1].value)
-    assert.are.same("files-utf8", all_with_headers["files-utf8"][1].headers["name"])
-    assert.are.same("attachment", all_with_headers["files-utf8"][1].headers["content-disposition"])
-    assert.are.same("simple.txt", all_with_headers["files-utf8"][1].headers["filename"])
-    assert.are.same({
-      charset = 'UTF-8',
-      lang = '',
-      value = '例子.txt'
-    }, all_with_headers["files-utf8"][1].headers["filename*"])
-    assert.are.same("uploadFile", all_with_headers["uploadFile"][1].headers["name"])
-    assert.are.same("form-data", all_with_headers["uploadFile"][1].headers["content-disposition"])
+    assert.are.same([[attachment; name="files-utf8"; filename="simple.txt"; filename*=UTF-8''%E4%BE%8B%E5%AD%90.txt]], all_with_headers["files-utf8"][1].headers["content-disposition"])
+    assert.are.same([[form-data; name="uploadFile"; filename*=UTF-8''%E3%83%95%E3%82%A7%E3%83%8B%E3%83%83%E3%82%AF%E3%82%B9.jpg]], all_with_headers["uploadFile"][1].headers["content-disposition"])
     assert.are.same("... contents of uploadFile.jpg ...", all_with_headers["uploadFile"][1].value)
-    assert.are.same({
-      charset = 'UTF-8',
-      lang = '',
-      value = 'フェニックス.jpg'
-    }, all_with_headers["uploadFile"][1].headers["filename*"])
 
+    assert.are.same('form-data; name="files"; filename="file1.txt"', all_with_headers["files"][1].headers["content-disposition"])
+    assert.are.same('form-data; name="files"', all_with_headers["files"][2].headers["content-disposition"])
 
-    assert.are.same("files", all_with_headers["files"][1].headers["name"])
-    assert.are.same("form-data", all_with_headers["files"][1].headers["content-disposition"])
-    assert.are.same("file1.txt", all_with_headers["files"][1].headers["filename"])
     assert.are.same("Larry", all_with_headers["submit-name"][1].value)
     assert.are.same("world :)", all_with_headers["hello"][1].value)
     assert.are.same("world2 :)", all_with_headers["hello2"][1].value)
-    assert.are.same("... contents of simple.txt ...", all_with_headers["files-utf8"][1].value)
-    assert.are.same("... contents of uploadFile.jpg ...", all_with_headers["uploadFile"][1].value)
   end)
