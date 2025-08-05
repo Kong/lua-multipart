@@ -28,5 +28,3 @@ jobs:
 
     - name: Lua Check
       uses: Kong/public-shared-actions/code-check-actions/lua-lint@v2
-      with:
-        additional_args: '--no-default-config --config .luacheckrc'
