@@ -352,7 +352,7 @@ Content-Type: text/plain
 
     local with_array_all = res:get_all_as_arrays()
     assert.truthy(with_array_all)
-    with_array = with_array_all["files"]
+    local with_array = with_array_all["files"]
     assert.truthy(with_array)
     assert.are.same({
       "... contents of file1.txt ...",
@@ -367,7 +367,6 @@ Content-Type: text/plain
     local body = "--\n"
     local res = Multipart(body, content_type)
     assert.truthy(res)
-    local internal_data = res._data
     local all = res:get_all()
     assert.are.same(0, table_size(all))
   end)
@@ -892,7 +891,6 @@ Content-Type: text/plain
 hello
 --AaB03x--]]
 
-  local res = Multipart(body, content_type)
 
   local new_body = table.concat({
     '--' .. Multipart.RANDOM_BOUNDARY,
