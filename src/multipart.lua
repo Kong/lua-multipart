@@ -125,8 +125,7 @@ local function decode(body, boundary)
             if not is_header(v) then -- If it's not content disposition part
               local pos = v:match("^%s*[Nn][Aa][Mm][Ee]=()")
               if pos then
-                local current_value = v:match("^%s*([^=]*)", pos):gsub("%s*$", "")
-                part_name = sub(current_value, 2, #current_value - 1)
+                part_name = v:match('^%s*"?([^"]*)"?', pos):gsub("%s*$", "")
               end
             end
           end
