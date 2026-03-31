@@ -1,8 +1,16 @@
 # Table of Contents
 
+- [v0.5.12](#v0512)
 - [v0.5.11](#v0511)
 - [v0.5.10](#v0510)
 - [v0.5.9](#v059)
+
+## [v0.5.12]
+
+> Released 2026/03/31
+
+### Fixes
+- fix(decode): handle unquoted Content-Disposition name parameter
 
 ## [v0.5.11]
 
