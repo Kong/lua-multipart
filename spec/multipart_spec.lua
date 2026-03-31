@@ -543,6 +543,38 @@ hello
     assert.are.same("... contents of file1.txt ...\nhello", all["files"])
   end)
 
+  it("should decode a multipart body with unquoted field names", function()
+    local content_type = "multipart/form-data; boundary=AaB03x"
+    local body = [[
+--AaB03x
+Content-Disposition: form-data; name=login_id
+
+larry123
+--AaB03x
+Content-Disposition: form-data; name=api_key
+
+secret456
+--AaB03x--]]
+
+    local res = Multipart(body, content_type)
+    assert.truthy(res)
+
+    local param = res:get("login_id")
+    assert.truthy(param)
+    assert.are.same("login_id", param.name)
+    assert.are.same("larry123", param.value)
+
+    param = res:get("api_key")
+    assert.truthy(param)
+    assert.are.same("api_key", param.name)
+    assert.are.same("secret456", param.value)
+
+    local all = res:get_all()
+    assert.are.same(2, table_size(all))
+    assert.are.same("larry123", all["login_id"])
+    assert.are.same("secret456", all["api_key"])
+  end)
+
   it("should encode a multipart body", function()
     local content_type = "multipart/form-data; boundary=AaB03x"
     local body = [[
