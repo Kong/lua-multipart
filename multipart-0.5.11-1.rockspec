@@ -1,8 +1,8 @@
 package = "multipart"
-version = "0.5.11-1"
+version = "0.5.12-1"
 source  = {
   url = "git://github.com/Kong/lua-multipart",
-  tag = "0.5.11-1",
+  tag = "0.5.12-1",
 }
 description = {
   summary  = "A simple HTTP multipart encoder/decoder for Lua",
