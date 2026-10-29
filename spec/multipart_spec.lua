@@ -1060,3 +1060,527 @@ Content-Type: image/jpeg
     assert.are.same("world :)", all_with_headers["hello"][1].value)
     assert.are.same("world2 :)", all_with_headers["hello2"][1].value)
   end)
+
+describe("Multipart decoding edge cases", function()
+  local CT = "multipart/form-data; boundary=AaB03x"
+
+  local function crlf(...)
+    return table.concat({ ... }, "\r\n")
+  end
+
+  local function sizeof(t)
+    local n = 0
+    for _ in pairs(t) do
+      n = n + 1
+    end
+    return n
+  end
+
+  describe("part names", function()
+    for _, name in ipairs({ "a:b", "x: y", "urn:a:b", "<http://e.com/x>" }) do
+      it("should decode a part whose name contains a colon: " .. name, function()
+        local body = crlf(
+          "--AaB03x",
+          'Content-Disposition: form-data; name="note"',
+          "",
+          "hello",
+          "--AaB03x",
+          'Content-Disposition: form-data; name="' .. name .. '"',
+          "Content-Type: application/json",
+          "",
+          '{"a":1}',
+          "--AaB03x--",
+          "")
+
+        local res = Multipart(body, CT)
+
+        local param = res:get(name)
+        assert.truthy(param)
+        assert.are.same(name, param.name)
+        assert.are.same('{"a":1}', param.value)
+        assert.are.same("hello", res:get("note").value)
+        assert.are.same(2, sizeof(res:get_all()))
+
+        local with_headers = res:get_all_include_headers_with_arrays()
+        assert.are.same("application/json", with_headers[name][1].headers["content-type"])
+      end)
+    end
+
+    it("should decode an unquoted name that contains a colon", function()
+      local body = crlf(
+        "--AaB03x",
+        "Content-Disposition: form-data; name=a:b",
+        "",
+        "value",
+        "--AaB03x--",
+        "")
+
+      assert.are.same("value", Multipart(body, CT):get("a:b").value)
+    end)
+
+    it("should decode a quoted name that contains a semicolon", function()
+      local body = crlf(
+        "--AaB03x",
+        'Content-Disposition: form-data; name="x;y"; filename="f.txt"',
+        "",
+        "value",
+        "--AaB03x--",
+        "")
+
+      local res = Multipart(body, CT)
+      assert.are.same("value", res:get("x;y").value)
+      assert.are.same(1, sizeof(res:get_all()))
+    end)
+
+    it("should decode a quoted name that contains an escaped quote", function()
+      local body = crlf(
+        "--AaB03x",
+        'Content-Disposition: form-data; name="a\\"b"',
+        "",
+        "value",
+        "--AaB03x--",
+        "")
+
+      assert.are.same("value", Multipart(body, CT):get('a"b').value)
+    end)
+
+    it("should find the name when it follows another parameter", function()
+      local body = crlf(
+        "--AaB03x",
+        'Content-Disposition: form-data; filename="f:1.txt"; name="file"',
+        "",
+        "value",
+        "--AaB03x--",
+        "")
+
+      assert.are.same("value", Multipart(body, CT):get("file").value)
+    end)
+
+    it("should not take a parameter whose name only ends with name as the part name", function()
+      local body = crlf(
+        "--AaB03x",
+        'Content-Disposition: form-data; username="u"; name="n"',
+        "",
+        "value",
+        "--AaB03x--",
+        "")
+
+      local res = Multipart(body, CT)
+      assert.are.same("value", res:get("n").value)
+      assert.is_nil(res:get("u"))
+    end)
+  end)
+
+  describe("delimiters", function()
+    it("should not split a part at a line that only starts with the boundary", function()
+      local body = crlf(
+        "--AaB03x",
+        'Content-Disposition: form-data; name="meta"',
+        "Content-Type: application/json",
+        "",
+        '{"a":"ok"}',
+        "--AaB03xX",
+        'Content-Disposition: form-data; name="x"',
+        "",
+        "hidden",
+        "--AaB03x--",
+        "")
+
+      local res = Multipart(body, CT)
+
+      assert.are.same(1, sizeof(res:get_all()))
+      assert.are.same(
+        '{"a":"ok"}\r\n--AaB03xX\r\nContent-Disposition: form-data; name="x"\r\n\r\nhidden',
+        res:get("meta").value)
+    end)
+
+    it("should accept trailing whitespace after a delimiter", function()
+      local body = crlf(
+        "--AaB03x \t",
+        'Content-Disposition: form-data; name="a"',
+        "",
+        "1",
+        "--AaB03x  ",
+        'Content-Disposition: form-data; name="b"',
+        "",
+        "2",
+        "--AaB03x-- \t",
+        "")
+
+      local res = Multipart(body, CT)
+      assert.are.same("1", res:get("a").value)
+      assert.are.same("2", res:get("b").value)
+      assert.are.same(2, sizeof(res:get_all()))
+    end)
+
+    it("should keep every part when the closing delimiter is missing", function()
+      local body = crlf(
+        "--AaB03x",
+        'Content-Disposition: form-data; name="meta"',
+        "",
+        "first",
+        "--AaB03x",
+        'Content-Disposition: form-data; name="meta"',
+        "",
+        "second")
+
+      local res = Multipart(body, CT)
+      assert.are.same({ "first", "second" }, res:get_as_array("meta"))
+      assert.are.same(2, #res:get_all_include_headers_with_arrays().meta)
+    end)
+
+    it("should ignore a preamble before the first delimiter", function()
+      local body = crlf(
+        "This is the preamble",
+        "--AaB03x",
+        'Content-Disposition: form-data; name="meta"',
+        "",
+        "value",
+        "--AaB03x--",
+        "")
+
+      local res = Multipart(body, CT)
+      assert.are.same("value", res:get("meta").value)
+      assert.are.same(1, sizeof(res:get_all()))
+    end)
+
+    it("should not decode a part from a preamble", function()
+      local body = crlf(
+        'Content-Disposition: form-data; name="evil"',
+        "",
+        "payload",
+        "--AaB03x",
+        'Content-Disposition: form-data; name="meta"',
+        "",
+        "value",
+        "--AaB03x--",
+        "")
+
+      local res = Multipart(body, CT)
+      assert.is_nil(res:get("evil"))
+      assert.are.same("value", res:get("meta").value)
+    end)
+
+    it("should ignore an epilogue after the closing delimiter", function()
+      local body = crlf(
+        "--AaB03x",
+        'Content-Disposition: form-data; name="a"',
+        "",
+        "1",
+        "--AaB03x--",
+        'Content-Disposition: form-data; name="b"',
+        "",
+        "2",
+        "")
+
+      local res = Multipart(body, CT)
+      assert.is_nil(res:get("b"))
+      assert.are.same(1, sizeof(res:get_all()))
+      assert.are.same("1", res:get("a").value)
+    end)
+  end)
+
+  describe("boundary parameter", function()
+    local body = crlf(
+      "--AaB03x",
+      'Content-Disposition: form-data; name="a"',
+      "",
+      "1",
+      "--AaB03x--",
+      "")
+
+    for _, content_type in ipairs({
+      "multipart/form-data; Boundary=AaB03x",
+      "multipart/form-data; BOUNDARY=AaB03x",
+      "multipart/form-data;boundary=AaB03x",
+      "multipart/form-data; boundary=AaB03x;charset=utf-8",
+      "multipart/form-data; boundary=AaB03x; charset=utf-8",
+      "multipart/form-data; charset=utf-8; boundary=AaB03x",
+      'multipart/form-data; boundary="AaB03x"; charset=utf-8',
+      "multipart/form-data; boundary='AaB03x'; charset=utf-8",
+      "multipart/form-data; boundary=AaB03x ",
+    }) do
+      it("should decode the boundary in: " .. content_type, function()
+        local res = Multipart(body, content_type)
+        assert.truthy(res:get("a"))
+        assert.are.same("1", res:get("a").value)
+      end)
+    end
+
+    it("should decode a quoted boundary that contains a space", function()
+      local spaced = crlf(
+        "--a b",
+        'Content-Disposition: form-data; name="a"',
+        "",
+        "1",
+        "--a b--",
+        "")
+
+      local res = Multipart(spaced, 'multipart/form-data; boundary="a b"; charset=utf-8')
+      assert.are.same("1", res:get("a").value)
+    end)
+
+    it("should decode a quoted boundary that contains a semicolon", function()
+      local semi = crlf(
+        "--a;b",
+        'Content-Disposition: form-data; name="a"',
+        "",
+        "1",
+        "--a;b--",
+        "")
+
+      local res = Multipart(semi, 'multipart/form-data; boundary="a;b"')
+      assert.are.same("1", res:get("a").value)
+    end)
+
+    it("should use the first boundary parameter", function()
+      local res = Multipart(body, "multipart/form-data; boundary=AaB03x; boundary=Other")
+      assert.are.same("1", res:get("a").value)
+    end)
+
+    it("should not decode a parameter whose name only ends with boundary", function()
+      local res = Multipart(body, "multipart/form-data; xboundary=AaB03x")
+      assert.is_nil(res:get("a"))
+    end)
+  end)
+
+  describe("parts without a name", function()
+    it("should not merge a part without a name into the next part", function()
+      local body = crlf(
+        "--AaB03x",
+        "Content-Type: text/plain",
+        "",
+        "unnamed",
+        "--AaB03x",
+        'Content-Disposition: form-data; name="meta"',
+        "Content-Type: application/json",
+        "",
+        '{"a":1}',
+        "--AaB03x--",
+        "")
+
+      local res = Multipart(body, CT)
+
+      assert.are.same('{"a":1}', res:get("meta").value)
+      assert.are.same(1, sizeof(res:get_all()))
+      local with_headers = res:get_all_include_headers_with_arrays()
+      assert.are.same("application/json", with_headers.meta[1].headers["content-type"])
+    end)
+
+    it("should not add a part without a name to the named views", function()
+      local body = crlf(
+        "--AaB03x",
+        "Content-Type: application/json",
+        "",
+        '{"a":1}',
+        "--AaB03x--",
+        "")
+
+      local res = Multipart(body, CT)
+      assert.are.same({}, res:get_all())
+      assert.are.same({}, res:get_all_with_arrays())
+      assert.are.same({}, res:get_all_include_headers_with_arrays())
+    end)
+
+    it("should not re-encode a part without a name", function()
+      local body = crlf(
+        "--AaB03x",
+        "Content-Type: application/json",
+        "",
+        '{"a":1}',
+        "--AaB03x",
+        'Content-Disposition: form-data; name="a"',
+        "",
+        "1",
+        "--AaB03x--",
+        "")
+
+      local encoded = Multipart(body, CT):tostring()
+      assert.is_nil(encoded:find("application/json", 1, true))
+      assert.truthy(encoded:find('name="a"', 1, true))
+    end)
+  end)
+
+  describe("get_parts()", function()
+    it("should return every part in body order, with and without a name", function()
+      local body = crlf(
+        "--AaB03x",
+        "Content-Type: application/json",
+        "",
+        '{"a":1}',
+        "--AaB03x",
+        'Content-Disposition: form-data; name="meta"',
+        "Content-Type: application/xml",
+        "",
+        "<a/>",
+        "--AaB03x",
+        "Content-Type: text/plain",
+        "",
+        "tail",
+        "--AaB03x--",
+        "")
+
+      local parts = Multipart(body, CT):get_parts()
+
+      assert.are.same(3, #parts)
+
+      assert.is_nil(parts[1].name)
+      assert.are.same('{"a":1}', parts[1].value)
+      assert.are.same({
+        { name = "content-type", value = "application/json" },
+      }, parts[1].headers)
+
+      assert.are.same("meta", parts[2].name)
+      assert.are.same("<a/>", parts[2].value)
+      assert.are.same({
+        { name = "content-disposition", value = 'form-data; name="meta"' },
+        { name = "content-type", value = "application/xml" },
+      }, parts[2].headers)
+
+      assert.is_nil(parts[3].name)
+      assert.are.same("tail", parts[3].value)
+      assert.are.same({
+        { name = "content-type", value = "text/plain" },
+      }, parts[3].headers)
+    end)
+
+    it("should keep duplicate headers of a part", function()
+      local body = crlf(
+        "--AaB03x",
+        'Content-Disposition: form-data; name="meta"',
+        "Content-Type: application/json",
+        "content-type: text/plain",
+        "",
+        '{"a":1}',
+        "--AaB03x--",
+        "")
+
+      local res = Multipart(body, CT)
+      local parts = res:get_parts()
+
+      assert.are.same({
+        { name = "content-disposition", value = 'form-data; name="meta"' },
+        { name = "content-type", value = "application/json" },
+        { name = "content-type", value = "text/plain" },
+      }, parts[1].headers)
+
+      local with_headers = res:get_all_include_headers_with_arrays()
+      assert.are.same("text/plain", with_headers.meta[1].headers["content-type"])
+    end)
+
+    it("should return repeated names as separate parts", function()
+      local body = crlf(
+        "--AaB03x",
+        'Content-Disposition: form-data; name="f"',
+        "",
+        "1",
+        "--AaB03x",
+        'Content-Disposition: form-data; name="f"',
+        "",
+        "2",
+        "--AaB03x--",
+        "")
+
+      local parts = Multipart(body, CT):get_parts()
+      assert.are.same(2, #parts)
+      assert.are.same("1", parts[1].value)
+      assert.are.same("2", parts[2].value)
+    end)
+
+    it("should return the last part when the closing delimiter is missing", function()
+      local body = crlf(
+        "--AaB03x",
+        "Content-Type: application/json",
+        "",
+        '{"a":1}')
+
+      local parts = Multipart(body, CT):get_parts()
+      assert.are.same(1, #parts)
+      assert.are.same('{"a":1}', parts[1].value)
+    end)
+
+    it("should return a part with a colon in its name", function()
+      local body = crlf(
+        "--AaB03x",
+        'Content-Disposition: form-data; name="a:b"',
+        "Content-Type: application/json",
+        "",
+        '{"a":1}',
+        "--AaB03x--",
+        "")
+
+      local parts = Multipart(body, CT):get_parts()
+      assert.are.same(1, #parts)
+      assert.are.same("a:b", parts[1].name)
+    end)
+
+    it("should return no parts without a body, a boundary or a delimiter", function()
+      assert.are.same({}, Multipart(nil, CT):get_parts())
+      assert.are.same({}, Multipart("", CT):get_parts())
+      assert.are.same({}, Multipart("x", "multipart/form-data"):get_parts())
+      assert.are.same({}, Multipart("no delimiter here", CT):get_parts())
+    end)
+
+    it("should return the parts of a multipart/mixed body that has no Content-Disposition", function()
+      local body = crlf(
+        "--AaB03x",
+        "Content-Type: application/json",
+        "",
+        '{"a":1}',
+        "--AaB03x",
+        "Content-Type: image/png",
+        "",
+        "\137PNG",
+        "--AaB03x--",
+        "")
+
+      local parts = Multipart(body, "multipart/mixed; boundary=AaB03x"):get_parts()
+      assert.are.same(2, #parts)
+      assert.are.same('{"a":1}', parts[1].value)
+      assert.are.same("\137PNG", parts[2].value)
+    end)
+
+    it("should decode a part that has no headers", function()
+      local body = crlf(
+        "--AaB03x",
+        "",
+        '{"a": 1}',
+        "--AaB03x",
+        'Content-Disposition: form-data; name="b"',
+        "",
+        "2",
+        "--AaB03x--",
+        "")
+
+      local res = Multipart(body, "multipart/mixed; boundary=AaB03x")
+      local parts = res:get_parts()
+
+      assert.are.same(2, #parts)
+      assert.are.same('{"a": 1}', parts[1].value)
+      assert.are.same({}, parts[1].headers)
+      assert.are.same("2", res:get("b").value)
+    end)
+
+    it("should still decode a body that uses LF line endings only", function()
+      local body = table.concat({
+        "--AaB03x",
+        'Content-Disposition: form-data; name="a"',
+        "",
+        "1",
+        "--AaB03x",
+        "Content-Type: text/plain",
+        "",
+        "unnamed",
+        "--AaB03x--",
+        "",
+      }, "\n")
+
+      local res = Multipart(body, CT)
+      local parts = res:get_parts()
+
+      assert.are.same("1", res:get("a").value)
+      assert.are.same(2, #parts)
+      assert.are.same("unnamed", parts[2].value)
+    end)
+  end)
+end)

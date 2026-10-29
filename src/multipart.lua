@@ -8,6 +8,7 @@ local pairs        = pairs
 local match        = string.match
 local find         = string.find
 local sub          = string.sub
+local lower        = string.lower
 
 
 local RANDOM_BOUNDARY = sub(tostring({}), 10)
@@ -31,6 +32,147 @@ local function is_header(value)
 end
 
 
+local function next_param(str, pos)
+  while true do
+    local start = find(str, ";", pos, true)
+    if not start then
+      return nil
+    end
+
+    local _, key_end, key = find(str, "^;%s*([^=;%s]+)=", start)
+    if not key then
+      pos = start + 1
+
+    else
+      local value_start = key_end + 1
+
+      if sub(str, value_start, value_start) == '"' then
+        local chunks = {}
+        local i = value_start + 1
+
+        while true do
+          local q = find(str, '["\\]', i)
+          if not q then
+            chunks[#chunks + 1] = sub(str, i)
+            return key, concat(chunks), #str + 1
+          end
+
+          chunks[#chunks + 1] = sub(str, i, q - 1)
+
+          if sub(str, q, q) == '"' then
+            return key, concat(chunks), q + 1
+          end
+
+          chunks[#chunks + 1] = sub(str, q + 1, q + 1)
+          i = q + 2
+        end
+      end
+
+      local value_end = find(str, ";", value_start, true) or (#str + 1)
+      return key, sub(str, value_start, value_end - 1), value_end
+    end
+  end
+end
+
+
+local function parse_part_name(line)
+  local name
+  local pos = 1
+
+  while true do
+    local key, value
+    key, value, pos = next_param(line, pos)
+    if not key then
+      return name
+    end
+
+    if lower(key) == "name" then
+      name = match(value, "^(.-)%s*$")
+    end
+  end
+end
+
+
+local function parse_boundary(content_type)
+  local pos = 1
+
+  while true do
+    local key, value
+    key, value, pos = next_param(content_type, pos)
+    if not key then
+      return nil
+    end
+
+    if lower(key) == "boundary" then
+      value = match(value, "^(.-)%s*$")
+
+      if sub(value, 1, 1) == "'" and sub(value, -1) == "'" then
+        value = sub(value, 2, -2)
+      end
+
+      if value ~= "" then
+        return value
+      end
+
+      return nil
+    end
+  end
+end
+
+
+local function match_delimiter(line, delimiter, delimiter_length)
+  if sub(line, 1, delimiter_length) ~= delimiter then
+    return false
+  end
+
+  local rest = sub(line, delimiter_length + 1)
+  if rest == "" or find(rest, "^[ \t]+$") then
+    return true, false
+  end
+
+  if find(rest, "^%-%-[ \t]*$") then
+    return true, true
+  end
+
+  return false
+end
+
+
+local function store_part(result, part_index, part_name, part_headers, part_value, part_value_ct, trim)
+  if trim then
+    if part_value[part_value_ct] == "\n" then
+      part_value[part_value_ct] = nil
+    end
+
+    if part_value[part_value_ct - 1] == "\r" then
+      part_value[part_value_ct - 1] = nil
+    end
+  end
+
+  local part = {
+    name    = part_name,
+    headers = part_headers,
+    value   = concat(part_value),
+  }
+
+  result.parts[#result.parts + 1] = part
+
+  if part_name == nil then
+    return part_index
+  end
+
+  result.data[part_index] = part
+
+  if result.indexes[part_name] == nil then
+    result.indexes[part_name] = {}
+  end
+
+  insert(result.indexes[part_name], part_index)
+
+  return part_index + 1
+end
+
+
 -- Create a table representation of multipart/data body
 --
 -- @param {string} body The multipart/data string body
@@ -40,11 +182,15 @@ local function decode(body, boundary)
   local result = {
     data    = {},
     indexes = {},
+    parts   = {},
   }
 
   if not boundary then
     return result
   end
+
+  local delimiter        = "--" .. boundary
+  local delimiter_length = #delimiter
 
   local part_name
   local part_index    = 1
@@ -52,7 +198,7 @@ local function decode(body, boundary)
   local part_value    = {}
   local part_value_ct = 0
 
-  local end_boundary_length   = boundary and #boundary + 2
+  local in_part               = false
   local processing_part_value = false
 
   local position = 1
@@ -78,97 +224,76 @@ local function decode(body, boundary)
       done = true
     end
 
-    if line == "" then
-      if s and processing_part_value then
+    local is_delimiter, is_closing = false, false
+    if sub(line, 1, 2) == "--" then
+      is_delimiter, is_closing = match_delimiter(line, delimiter, delimiter_length)
+    end
+
+    if is_delimiter then
+      if in_part then
+        part_index = store_part(result, part_index, part_name, part_headers,
+                                part_value, part_value_ct, true)
+
+        part_headers  = {}
+        part_value    = {}
+        part_value_ct = 0
+        part_name     = nil
+      end
+
+      in_part = not is_closing
+      processing_part_value = false
+
+      if is_closing then
+        done = true
+
+      elseif s and sub(body, s, s + 3) == "\r\n\r\n" then
+        processing_part_value = true
+        position = s + 4
+      end
+
+    elseif line == "" then
+      if in_part and s and processing_part_value then
         part_value_ct             = part_value_ct + 1
         part_value[part_value_ct] = sub(body, s, s)
       end
 
-    else
-      if sub(line, 1, 2) == "--" and sub(line, 3, end_boundary_length) == boundary then
-        processing_part_value = false
+    elseif in_part then
+      if not processing_part_value and line:sub(1, 19):lower() == "content-disposition" then
+        part_name = parse_part_name(line)
 
-        if part_name ~= nil then
-          if part_value[part_value_ct] == "\n" then
-             part_value[part_value_ct] = nil
-          end
+        insert(part_headers, line)
 
-          if part_value[part_value_ct - 1] == "\r" then
-             part_value[part_value_ct - 1] = nil
-          end
+        if s and sub(body, s, s + 3) == "\r\n\r\n" then
+          processing_part_value = true
+          position = s + 4
+        end
 
-          result.data[part_index] = {
-            name    = part_name,
-            headers = part_headers,
-            value   = concat(part_value)
-          }
+      elseif not processing_part_value and is_header(line) then
+        insert(part_headers, line)
 
-          if result.indexes[part_name] == nil then
-            result.indexes[part_name] = {}
-          end
-
-          insert(result.indexes[part_name], part_index)
-
-          -- Reset fields for the next part
-          part_headers  = {}
-          part_value    = {}
-          part_value_ct = 0
-          part_name     = nil
-          part_index    = part_index + 1
+        if s and sub(body, s, s + 3) == "\r\n\r\n" then
+          processing_part_value = true
+          position = s + 4
         end
 
       else
-        --Beginning of part
-        if not processing_part_value and line:sub(1, 19):lower() == "content-disposition" then
-          -- Extract part_name
-          for v in line:gmatch("[^;]+") do
-            if not is_header(v) then -- If it's not content disposition part
-              local pos = v:match("^%s*[Nn][Aa][Mm][Ee]=()")
-              if pos then
-                part_name = v:match('^%s*"?([^"]*)"?', pos):gsub("%s*$", "")
-              end
-            end
-          end
+        processing_part_value = true
 
-          insert(part_headers, line)
+        part_value_ct               = part_value_ct + 1
+        part_value[part_value_ct]   = line
 
-          if s and sub(body, s, s + 3) == "\r\n\r\n" then
-            processing_part_value = true
-            position = s + 4
-          end
-
-        elseif not processing_part_value and is_header(line) then
-          insert(part_headers, line)
-
-          if s and sub(body, s, s + 3) == "\r\n\r\n" then
-            processing_part_value = true
-            position = s + 4
-          end
-
-        else
-          processing_part_value = true
-
-          -- The value part begins
-          part_value_ct               = part_value_ct + 1
-          part_value[part_value_ct]   = line
-
-          if s then
-            part_value_ct             = part_value_ct + 1
-            part_value[part_value_ct] = sub(body, s, s)
-          end
+        if s then
+          part_value_ct             = part_value_ct + 1
+          part_value[part_value_ct] = sub(body, s, s)
         end
       end
     end
 
   until done
 
-  if part_name ~= nil then
-    result.data[part_index] = {
-      name    = part_name,
-      headers = part_headers,
-      value   = concat(part_value)
-    }
-    result.indexes[part_name] = { part_index }
+  if in_part then
+    store_part(result, part_index, part_name, part_headers,
+               part_value, part_value_ct, false)
   end
 
   return result
@@ -226,17 +351,7 @@ function MultipartData.new(data, content_type)
   local instance = setmetatable({}, MultipartData)
 
   if content_type then
-    local boundary = match(content_type, ";%s*boundary=(%S+)")
-    if boundary then
-      if (sub(boundary, 1, 1) == '"' and sub(boundary, -1)  == '"') or
-         (sub(boundary, 1, 1) == "'" and sub(boundary, -1)  == "'") then
-        boundary = sub(boundary, 2, -2)
-      end
-
-      if boundary ~= "" then
-        instance._boundary = boundary
-      end
-    end
+    instance._boundary = parse_boundary(content_type)
   end
 
   instance._data = decode(data or "", instance._boundary)
@@ -368,6 +483,33 @@ function MultipartData:get_all_include_headers_with_arrays()
     else
       result[k] = self:get_with_headers_as_array(k)
     end
+  end
+
+  return result
+end
+
+
+function MultipartData:get_parts()
+  local result = {}
+
+  for i, part in ipairs(self._data.parts) do
+    local headers = {}
+
+    for _, header in ipairs(part.headers) do
+      local key, value = match(header, "([^:]+):%s*(.+)")
+      if key and value then
+        headers[#headers + 1] = {
+          name  = lower(match(key, "^%s*(.-)%s*$")),
+          value = value,
+        }
+      end
+    end
+
+    result[i] = {
+      name    = part.name,
+      value   = part.value,
+      headers = headers,
+    }
   end
 
   return result

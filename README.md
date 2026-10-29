@@ -41,6 +41,30 @@ local t = multipart_data:get_all_as_arrays()
 local t = multipart_data:get_all_with_arrays()
 ```
 
+# Reading every part
+
+`get_parts()` returns every part of the decoded body, in the order of the body. It includes the parts that have no `name` in their `Content-Disposition` header, for example the parts of a `multipart/mixed` body. The other getters do not return these parts.
+
+```lua
+for _, part in ipairs(multipart_data:get_parts()) do
+  part.name -- nil when the part has no name
+  part.value -- the value of the part
+  part.headers -- a list of { name = "content-type", value = "application/json" } in body order
+end
+```
+
+The header list keeps duplicate headers. Header names are in lower case.
+
+`get_parts()` describes the body as the library decoded it. A later call to `set_simple` or `delete` does not change the result.
+
+# Decoding rules
+
+- The library ignores the text before the first delimiter and the text after the closing delimiter.
+- A delimiter line is `--<boundary>` or `--<boundary>--`, optionally followed by spaces or tabs.
+- The `boundary` and `name` parameters can be quoted. A quoted value can contain `;` and an escaped quote.
+- The name of the parameter is not case-sensitive.
+- If the closing delimiter is missing, the library keeps the last part.
+
 # Contribute
 
 This library is a work in progress, pull-requests are welcomed.
