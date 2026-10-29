@@ -1,10 +1,18 @@
 # Table of Contents
 
+- [v0.6.1](#v061)
 - [v0.6.0](#v060)
 - [v0.5.12](#v0512)
 - [v0.5.11](#v0511)
 - [v0.5.10](#v0510)
 - [v0.5.9](#v059)
+
+## [v0.6.1]
+
+> Released 2026/10/29
+
+### Fixes
+- Decode the parts that follow a closing delimiter again, as version 0.5 did. Version 0.6.0 ignored them. This changed the result for a body that has a part after a closing delimiter.
 
 ## [v0.6.0]
 
