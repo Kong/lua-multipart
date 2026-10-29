@@ -1261,7 +1261,7 @@ describe("Multipart decoding edge cases", function()
       assert.are.same("value", res:get("meta").value)
     end)
 
-    it("should ignore an epilogue after the closing delimiter", function()
+    it("should decode a part that follows the closing delimiter", function()
       local body = crlf(
         "--AaB03x",
         'Content-Disposition: form-data; name="a"',
@@ -1271,12 +1271,91 @@ describe("Multipart decoding edge cases", function()
         'Content-Disposition: form-data; name="b"',
         "",
         "2",
+        "--AaB03x--",
         "")
 
       local res = Multipart(body, CT)
-      assert.is_nil(res:get("b"))
-      assert.are.same(1, sizeof(res:get_all()))
       assert.are.same("1", res:get("a").value)
+      assert.are.same("2", res:get("b").value)
+      assert.are.same(2, sizeof(res:get_all()))
+    end)
+
+    it("should decode a repeated name across a closing delimiter as an array", function()
+      local body = table.concat({
+        "--AaB03x",
+        'Content-Disposition: form-data; name="file"; filename="file1.txt"',
+        "Content-Type: text/plain",
+        "",
+        "form",
+        "--AaB03x",
+        'Content-Disposition: form-data; name="test"',
+        "",
+        "data1",
+        "--AaB03x--",
+        'Content-Disposition: form-data; name="test"',
+        "",
+        "data2",
+        "--AaB03x--",
+        "",
+      }, "\n")
+
+      local res = Multipart(body, CT)
+      local all = res:get_all_with_arrays()
+
+      assert.are.same("form", all.file)
+      assert.are.same({ "data1", "data2" }, all.test)
+      assert.are.same({ "data1", "data2" }, res:get_as_array("test"))
+    end)
+
+    it("should not add a part for the line ending after the closing delimiter", function()
+      local body = crlf(
+        "--AaB03x",
+        'Content-Disposition: form-data; name="a"',
+        "",
+        "1",
+        "--AaB03x--",
+        "",
+        "")
+
+      local res = Multipart(body, CT)
+      assert.are.same(1, #res:get_parts())
+      assert.are.same({ a = "1" }, res:get_all())
+    end)
+
+    it("should not add a named part for text after the closing delimiter that has no headers", function()
+      local body = crlf(
+        "--AaB03x",
+        'Content-Disposition: form-data; name="a"',
+        "",
+        "1",
+        "--AaB03x--",
+        "trailing text",
+        "")
+
+      local res = Multipart(body, CT)
+      assert.are.same({ a = "1" }, res:get_all())
+    end)
+
+    it("should return a part after the closing delimiter from get_parts", function()
+      local body = crlf(
+        "--AaB03x",
+        'Content-Disposition: form-data; name="a"',
+        "",
+        "1",
+        "--AaB03x--",
+        "Content-Type: application/json",
+        "",
+        '{"late":1}',
+        "--AaB03x--",
+        "")
+
+      local parts = Multipart(body, CT):get_parts()
+
+      assert.are.same(2, #parts)
+      assert.are.same("1", parts[1].value)
+      assert.is_nil(parts[2].name)
+      assert.are.same({ { name = "content-type", value = "application/json" } }, parts[2].headers)
+      assert.are.same('{"late":1}', parts[2].value)
     end)
   end)
 

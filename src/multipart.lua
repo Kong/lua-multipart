@@ -199,6 +199,8 @@ local function decode(body, boundary)
   local part_value_ct = 0
 
   local in_part               = false
+  local explicit_part         = false
+  local has_content           = false
   local processing_part_value = false
 
   local position = 1
@@ -230,23 +232,22 @@ local function decode(body, boundary)
     end
 
     if is_delimiter then
-      if in_part then
+      if in_part and (explicit_part or has_content) then
         part_index = store_part(result, part_index, part_name, part_headers,
                                 part_value, part_value_ct, true)
-
-        part_headers  = {}
-        part_value    = {}
-        part_value_ct = 0
-        part_name     = nil
       end
 
-      in_part = not is_closing
+      part_headers  = {}
+      part_value    = {}
+      part_value_ct = 0
+      part_name     = nil
+
+      in_part       = true
+      explicit_part = not is_closing
+      has_content   = false
       processing_part_value = false
 
-      if is_closing then
-        done = true
-
-      elseif s and sub(body, s, s + 3) == "\r\n\r\n" then
+      if not is_closing and s and sub(body, s, s + 3) == "\r\n\r\n" then
         processing_part_value = true
         position = s + 4
       end
@@ -258,6 +259,8 @@ local function decode(body, boundary)
       end
 
     elseif in_part then
+      has_content = true
+
       if not processing_part_value and line:sub(1, 19):lower() == "content-disposition" then
         part_name = parse_part_name(line)
 
@@ -291,7 +294,7 @@ local function decode(body, boundary)
 
   until done
 
-  if in_part then
+  if in_part and (explicit_part or has_content) then
     store_part(result, part_index, part_name, part_headers,
                part_value, part_value_ct, false)
   end

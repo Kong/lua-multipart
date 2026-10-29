@@ -59,7 +59,8 @@ The header list keeps duplicate headers. Header names are in lower case.
 
 # Decoding rules
 
-- The library ignores the text before the first delimiter and the text after the closing delimiter.
+- The library ignores the text before the first delimiter.
+- The library decodes the parts that follow a closing delimiter, as version 0.5 did.
 - A delimiter line is `--<boundary>` or `--<boundary>--`, optionally followed by spaces or tabs.
 - The `boundary` and `name` parameters can be quoted. A quoted value can contain `;` and an escaped quote.
 - The name of the parameter is not case-sensitive.
