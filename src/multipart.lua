@@ -69,7 +69,7 @@ local function next_param(str, pos)
       end
 
       local value_end = find(str, ";", value_start, true) or (#str + 1)
-      return key, match(sub(str, value_start, value_end - 1), "^(.-)%s*$"), value_end
+      return key, match(sub(str, value_start, value_end - 1), "^(.*%S)") or "", value_end
     end
   end
 end
