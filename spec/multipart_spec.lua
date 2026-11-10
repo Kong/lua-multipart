@@ -1118,6 +1118,50 @@ describe("Multipart decoding edge cases", function()
       assert.are.same("value", Multipart(body, CT):get("a:b").value)
     end)
 
+    it("should preserve whitespace inside quoted part names", function()
+      local body = crlf(
+        "--AaB03x",
+        'Content-Disposition: form-data; name="user"',
+        "",
+        "plain",
+        "--AaB03x",
+        'Content-Disposition: form-data; name="user "',
+        "",
+        "trailing space",
+        "--AaB03x",
+        'Content-Disposition: form-data; name=" \tuser\t "',
+        "",
+        "spaces and tabs",
+        "--AaB03x--",
+        "")
+
+      local res = Multipart(body, CT)
+      local expected = {
+        user = "plain",
+        ["user "] = "trailing space",
+        [" \tuser\t "] = "spaces and tabs",
+      }
+      assert.are.same(expected, res:get_all())
+      assert.are.same(expected, res:get_all_with_arrays())
+    end)
+
+    it("should trim trailing whitespace outside unquoted part names", function()
+      local body = crlf(
+        "--AaB03x",
+        "Content-Disposition: form-data; name=user \t",
+        "",
+        "first",
+        "--AaB03x",
+        'Content-Disposition: form-data; name=user \t; filename="f.txt"',
+        "",
+        "second",
+        "--AaB03x--",
+        "")
+
+      local res = Multipart(body, CT)
+      assert.are.same({ user = { "first", "second" } }, res:get_all_with_arrays())
+    end)
+
     it("should decode a quoted name that contains a semicolon", function()
       local body = crlf(
         "--AaB03x",
